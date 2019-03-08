@@ -184,6 +184,7 @@
       (eval (read magic-property)))))
 (add-hook 'org-trigger-hook 'org-literate-devtools-trigger-function)
 #+end_src
+
 ** Extended tangling
 *** tangle-relatives
 
@@ -499,7 +500,7 @@ used to limit the exported source code blocks by language."
 ;;; org-literate-devtools.el ends here
 #+end_src
 
-* =Settings=                                                                    :ARCHIVE:
+* =Settings=
 # Local Variables:
 # org-literate-test-selector: "^org-literate-devtools-test-*"
 # org-literate-test-buffer: "*org-literate-devtools-tests*"
