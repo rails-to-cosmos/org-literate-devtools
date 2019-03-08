@@ -169,9 +169,6 @@
                              (insert " ")
                              (backward-char))))
             (insert explicit-category)))))))
-
-;; (add-hook 'org-insert-heading-hook #'org-literate-devtools-insert-heading)
-
 #+end_src
 
 *** task-hooks
