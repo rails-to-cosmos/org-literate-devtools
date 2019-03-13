@@ -378,5 +378,20 @@ used to limit the exported source code blocks by language."
                          total expected unexpected skipped)))
       (apply 'message report))))
 
+(defun org-literate-devtools-magit-workon ()
+  "Switch to project branch."
+  (interactive)
+  (save-window-excursion
+    (save-excursion
+      (org-clock-goto)
+      (let* ((repo (org-literate-devtools-project-get-property "REPO"))
+             (branch (org-literate-devtools-project-get-property "BRANCH"))
+             (source (org-literate-devtools-project-get-property "SOURCE_BRANCH"))
+             (default-directory (concat "~/work/" repo)))
+        (unless (string= branch (magit-get-current-branch))
+          (when (y-or-n-p "Switch to task branch?")
+            (magit-branch-or-checkout branch source)
+            (magit-branch-checkout branch)))))))
+
 (provide 'org-literate-devtools)
 ;;; org-literate-devtools.el ends here
