@@ -99,8 +99,8 @@
    property (org-literate-devtools-search-project)))
 
 (defun org-literate-devtools-trigger-function (change-plist)
-  (let ((state-from (substring-no-properties (plist-get change-plist :from)))
-        (state-to (substring-no-properties (plist-get change-plist :to))))
+  (let ((state-from (substring-no-properties (or (plist-get change-plist :from) "")))
+        (state-to (substring-no-properties (or (plist-get change-plist :to) ""))))
     (when-let (magic-property (org-literate-devtools-project-get-property (format "TASK_%s" state-to)))
       (eval (read magic-property)))))
 (add-hook 'org-trigger-hook 'org-literate-devtools-trigger-function)
