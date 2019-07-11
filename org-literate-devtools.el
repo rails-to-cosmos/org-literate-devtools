@@ -1,4 +1,4 @@
-;;; org-literate-devtools.el --- org-driven development
+;;; oldt.el --- org-driven development
 
 ;; Copyright (C) 2019 Dmitry Akatov
 
@@ -7,7 +7,7 @@
 ;; Version: 0.1
 
 ;; Keywords: org devtools babel
-;; Homepage: https://github.com/rails-to-cosmos/org-literate-devtools
+;; Homepage: https://github.com/rails-to-cosmos/oldt
 
 ;; This file is not part of GNU Emacs.
 
@@ -30,7 +30,10 @@
 
 ;;; Code:
 
-(defun org-literate-devtools-get-node-property (property &optional pom)
+(defun is-there-tags-at-point (tags)
+  (seq-intersection tags (org-get-tags-at)))
+
+(defun oldt-get-node-property (property &optional pom)
   (save-excursion
     (when pom
       (org-goto-marker-or-bmk pom))
@@ -41,7 +44,7 @@
                      ((stringp property) (intern (format ":%s" property)))
                      (t (error "Unable to retrieve project property"))))))
 
-(defun org-literate-devtools-search-ancestor (predicate)
+(defun oldt-search-ancestor (predicate)
   (save-excursion
     (org-with-wide-buffer
      (unless (org-at-heading-p)
@@ -51,61 +54,68 @@
      (when (funcall predicate)
        (point-marker)))))
 
-(defun org-literate-devtools-tangle-buffer ()
+(defun oldt-tangle-buffer ()
   (org-element-map (org-element-parse-buffer 'element) 'src-block
     (lambda (datum)
       (let* ((lang (org-element-property :language datum))
              (ext (or (cdr (assoc lang org-babel-tangle-lang-exts)) lang))
              (point (org-element-property :begin datum)))
         (org-with-point-at point
-          (org-literate-devtools-tangle-relatives))))))
+          (oldt-tangle-relatives))))))
 
-(defun org-literate-devtools-tangle-subtree-at-point ()
+(defun oldt-tangle-subtree-at-point ()
   (interactive)
   (save-restriction
     (condition-case nil
         (org-narrow-to-subtree)
       (error nil))
-    (org-literate-devtools-tangle-buffer)))
+    (oldt-tangle-buffer)))
 
-(defun org-literate-devtools-tangle-project ()
+(defun oldt-tangle-project ()
   (interactive)
   (save-excursion
-    (org-literate-devtools-goto-project)
-    (org-literate-devtools-tangle-subtree-at-point)))
+    (oldt-goto-project)
+    (oldt-tangle-subtree-at-point)))
 
-(defun org-literate-devtools-compile-project()
+(defun oldt-compile-project()
   (interactive)
-  (org-literate-devtools-tangle-project)
-  (let ((cmd (org-literate-devtools-ensure-local-var 'compile-command)))
+  (oldt-tangle-project)
+  (let ((cmd (oldt-ensure-local-var 'compile-command)))
     (save-excursion
-      (org-literate-devtools-goto-project)
+      (oldt-goto-project)
       (save-window-excursion
-        (org-literate-devtools-goto-tangle-file)
+        (oldt-goto-tangle-file)
         (compile cmd))))
 
   (switch-to-buffer-other-window "*compilation*"))
 
-(defun org-literate-devtools-search-project ()
-  (org-literate-devtools-search-ancestor
-   #'(lambda () (org-literate-devtools-get-node-property "CATEGORY"))))
+(defun oldt-search-project ()
+  (oldt-search-ancestor
+   #'(lambda () (oldt-get-node-property "CATEGORY"))))
 
-(defun org-literate-devtools-goto-project ()
+(defun oldt-goto-project ()
   (interactive)
-  (org-goto-marker-or-bmk (org-literate-devtools-search-project)))
+  (org-goto-marker-or-bmk (oldt-search-project)))
 
-(defun org-literate-devtools-project-get-property (property)
-  (org-literate-devtools-get-node-property
-   property (org-literate-devtools-search-project)))
+(defun oldt-project-get-property (property)
+  (oldt-get-node-property
+   property (oldt-search-project)))
 
-(defun org-literate-devtools-trigger-function (change-plist)
+(defun oldt-trigger-function (change-plist)
   (let ((state-from (substring-no-properties (or (plist-get change-plist :from) "")))
         (state-to (substring-no-properties (or (plist-get change-plist :to) ""))))
-    (when-let (magic-property (org-literate-devtools-project-get-property (format "TASK_%s" state-to)))
+    (when-let (magic-property (oldt-project-get-property (format "TASK_%s" state-to)))
       (eval (read magic-property)))))
-(add-hook 'org-trigger-hook 'org-literate-devtools-trigger-function)
+(add-hook 'org-trigger-hook 'oldt-trigger-function)
 
-(defun org-literate-devtools-tangle-relatives (&optional arg target-file lang)
+(defun oldt-task-get-property (property)
+  (when (org-clocking-p)
+    (save-window-excursion
+      (org-clock-goto)
+      (org-back-to-heading)
+      (org-entry-get (mark) property))))
+
+(defun oldt-tangle-relatives (&optional arg target-file lang)
   "Write code blocks to source-specific files.
 Extract the bodies of all source code blocks from the current
 file into their own source-specific files.
@@ -200,7 +210,7 @@ used to limit the exported source code blocks by language."
 		      (unless (assoc file-name path-collector)
 			(push (cons file-name tangle-mode) path-collector))))))
 	      specs)))
-         (org-literate-devtools-collect-relative-blocks))
+         (oldt-collect-relative-blocks))
 
 	;; run `org-babel-post-tangle-hook' in all tangled files
 	(when org-babel-post-tangle-hook
@@ -241,7 +251,7 @@ used to limit the exported source code blocks by language."
                when (and level dir) collect dir into tangle-dir
                unless level return (when tangle-dir (apply 'f-join (reverse tangle-dir)))))))
 
-(defun org-literate-devtools-collect-relative-blocks ()
+(defun oldt-collect-relative-blocks ()
   (let* ((counter 0) last-heading-pos blocks
          (info (org-babel-get-src-block-info 'light))
          (babel-params (nth 2 info))
@@ -262,7 +272,7 @@ used to limit the exported source code blocks by language."
     ;; Ensure blocks are in the correct order.
     (nreverse blocks)))
 
-(defun org-literate-devtools-collect-tangle-files-in-buffer ()
+(defun oldt-collect-tangle-files-in-buffer ()
   (-distinct
    (-flatten
     (org-element-map (org-element-parse-buffer 'element) 'src-block
@@ -290,22 +300,22 @@ used to limit the exported source code blocks by language."
                     collect (expand-file-name
                              (consider-tangle-dir value)))))))))))
 
-(defun org-literate-devtools-collect-tangle-files-in-subtree ()
+(defun oldt-collect-tangle-files-in-subtree ()
   (interactive)
   (save-restriction
     (condition-case nil
         (org-narrow-to-subtree)
       (error nil))
-    (org-literate-devtools-collect-tangle-files-in-buffer)))
+    (oldt-collect-tangle-files-in-buffer)))
 
-(defun org-literate-devtools-collect-project-tangle-files ()
+(defun oldt-collect-project-tangle-files ()
   (save-excursion
-    (org-literate-devtools-goto-project)
-    (org-literate-devtools-collect-tangle-files-in-subtree)))
+    (oldt-goto-project)
+    (oldt-collect-tangle-files-in-subtree)))
 
-(defun org-literate-devtools-goto-tangle-file()
+(defun oldt-goto-tangle-file()
   (interactive)
-  (if-let (tangle-files (org-literate-devtools-collect-tangle-files-in-subtree))
+  (if-let (tangle-files (oldt-collect-tangle-files-in-subtree))
       (switch-to-buffer
        (find-file-noselect
         (if (> (length tangle-files) 1)
@@ -354,19 +364,19 @@ used to limit the exported source code blocks by language."
     ;; return the filenames
     el-files-list))
 
-(defun org-literate-devtools-ensure-local-var(symbol)
+(defun oldt-ensure-local-var(symbol)
   (unless (and (boundp symbol) (local-variable-p symbol))
     (let ((value (read-string (format "%s: " (symbol-name symbol)))))
       (add-file-local-variable symbol value)))
   (eval symbol))
 
-(defun org-literate-devtools-build ()
+(defun oldt-build ()
   (interactive)
   (let ((project-files (files-in-below-directory "./")))
     (org-babel-tangle)
     (mapc 'load-file project-files)
     (mapc 'byte-compile-file project-files)
-    (mapc 'org-literate-devtools-ensure-local-var
+    (mapc 'oldt-ensure-local-var
           '(org-literate-test-selector org-literate-test-buffer))
 
     (let* ((ert-stats (ert-run-tests-interactively org-literate-test-selector org-literate-test-buffer))
@@ -378,20 +388,49 @@ used to limit the exported source code blocks by language."
                          total expected unexpected skipped)))
       (apply 'message report))))
 
-(defun org-literate-devtools-magit-workon ()
+(defun oldt-magit-workon ()
   "Switch to project branch."
   (interactive)
   (save-window-excursion
     (save-excursion
       (org-clock-goto)
-      (let* ((repo (org-literate-devtools-project-get-property "REPO"))
-             (branch (org-literate-devtools-project-get-property "BRANCH"))
-             (source (org-literate-devtools-project-get-property "SOURCE_BRANCH"))
+      (let* ((repo (oldt-project-get-property "REPO"))
+             (branch (oldt-project-get-property "BRANCH"))
+             (source (oldt-project-get-property "SOURCE_BRANCH"))
              (default-directory (concat "~/work/" repo)))
         (unless (string= branch (magit-get-current-branch))
           (when (y-or-n-p "Switch to task branch?")
             (magit-branch-or-checkout branch source)
             (magit-branch-checkout branch)))))))
+
+(defun oldt-insert-commit-msg ()
+  (insert (oldt-project-get-property "BRANCH") ":" (oldt-task-get-property "ITEM")))
+
+(defun oldt-evaluate-blocks-current-heading ()
+  (org-back-to-heading)
+  (save-excursion
+    (save-restriction
+      (org-save-outline-visibility nil
+        (narrow-to-region (org-entry-beginning-position) (org-entry-end-position))
+        (loop while (condition-case-unless-debug user-error (org-babel-next-src-block) (user-error nil))
+              collect (org-babel-execute-src-block nil nil '((:results . "silent"))) into report
+              finally (return (-all-p (lambda (result) (s-contains-p "success" (downcase result))) report)))))
+    ;; (save-window-excursion
+    ;;   )
+    ))
+
+(defun oldt-heading-sbe ()
+  (interactive)
+  (ledna/set-todo-state "LOADING")
+  (sit-for 0.2)
+  (if (oldt-evaluate-blocks-current-heading)
+      (ledna/set-todo-state "PASSED")
+    (ledna/set-todo-state "FAILED")))
+
+(defun oldt-reset-tests ()
+  (interactive)
+  (ledna/set-todo-state "TEST" (ledna/search ":oldt:test_case:" 'tree))
+  (org-update-statistics-cookies t))
 
 (provide 'org-literate-devtools)
 ;;; org-literate-devtools.el ends here
