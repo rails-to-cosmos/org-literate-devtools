@@ -3,7 +3,7 @@
 #+EMAIL: akatovda@yandex.com
 #+CATEGORY: org-literate-devtools
 #+PROPERTY: header-args:emacs-lisp :noweb yes :tangle yes :results silent
-
+(oldt-search-project)
 * Hello
 
 #+begin_src emacs-lisp
@@ -124,26 +124,24 @@
 #+end_src
 
 *** search-project
-
 #+begin_src emacs-lisp
 (defun oldt-search-project ()
-  (oldt-search-ancestor
-   #'(lambda () (oldt-get-node-property "CATEGORY"))))
+  (when (org-clocking-p)
+    (org-clock-goto))
+  (oldt-search-ancestor #'(lambda () (oldt-get-node-property "CATEGORY"))))
 #+end_src
-
 *** goto-project
-
 #+begin_src emacs-lisp
 (defun oldt-goto-project ()
   (interactive)
   (org-goto-marker-or-bmk (oldt-search-project)))
 #+end_src
-
 *** project-get-property
 #+begin_src emacs-lisp
 (defun oldt-project-get-property (property)
-  (oldt-get-node-property
-   property (oldt-search-project)))
+  (save-window-excursion
+    (oldt-get-node-property
+     property (oldt-search-project))))
 #+end_src
 *** COMMENT toggle-explicit-category
 
@@ -527,7 +525,7 @@ used to limit the exported source code blocks by language."
 *** Insert commit message template
 #+begin_src emacs-lisp
 (defun oldt-insert-commit-msg ()
-  (insert (oldt-project-get-property "BRANCH") ":" (oldt-task-get-property "ITEM")))
+  (insert (oldt-project-get-property "BRANCH") ": " (oldt-task-get-property "ITEM")))
 #+end_src
 * Experiments
 

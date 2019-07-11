@@ -90,16 +90,18 @@
   (switch-to-buffer-other-window "*compilation*"))
 
 (defun oldt-search-project ()
-  (oldt-search-ancestor
-   #'(lambda () (oldt-get-node-property "CATEGORY"))))
+  (when (org-clocking-p)
+    (org-clock-goto))
+  (oldt-search-ancestor #'(lambda () (oldt-get-node-property "CATEGORY"))))
 
 (defun oldt-goto-project ()
   (interactive)
   (org-goto-marker-or-bmk (oldt-search-project)))
 
 (defun oldt-project-get-property (property)
-  (oldt-get-node-property
-   property (oldt-search-project)))
+  (save-window-excursion
+    (oldt-get-node-property
+     property (oldt-search-project))))
 
 (defun oldt-trigger-function (change-plist)
   (let ((state-from (substring-no-properties (or (plist-get change-plist :from) "")))
@@ -404,7 +406,7 @@ used to limit the exported source code blocks by language."
             (magit-branch-checkout branch)))))))
 
 (defun oldt-insert-commit-msg ()
-  (insert (oldt-project-get-property "BRANCH") ":" (oldt-task-get-property "ITEM")))
+  (insert (oldt-project-get-property "BRANCH") ": " (oldt-task-get-property "ITEM")))
 
 (defun oldt-evaluate-blocks-current-heading ()
   (org-back-to-heading)
