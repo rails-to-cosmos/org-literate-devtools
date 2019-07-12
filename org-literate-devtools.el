@@ -410,10 +410,16 @@ used to limit the exported source code blocks by language."
 (defun oldt-insert-commit-msg ()
   (insert (oldt-project-get-property "BRANCH") ": " (oldt-task-get-property "ITEM")))
 
-(defun oldt-restart-task ()
+(defun oldt-task-trigger-todo-hook ()
   (interactive)
-  (let ((state (oldt-task-get-property "STATE")))
-    (oldt-trigger-function (list :from state :to "TODO"))
+  (let ((state (oldt-task-get-property "STATE"))
+        (default-directory (file-name-directory (buffer-file-name (org-clocking-buffer)))))
+    (oldt-trigger-function (list :from state :to "TODO"))))
+
+(defun oldt-task-trigger-start-hook ()
+  (interactive)
+  (let ((state (oldt-task-get-property "STATE"))
+        (default-directory (file-name-directory (buffer-file-name (org-clocking-buffer)))))
     (oldt-trigger-function (list :from "TODO" :to state))))
 
 (defun oldt-evaluate-blocks-current-heading ()

@@ -506,10 +506,16 @@ used to limit the exported source code blocks by language."
 #+end_src
 *** "Restart" current task
 #+begin_src emacs-lisp
-(defun oldt-restart-task ()
+(defun oldt-task-trigger-todo-hook ()
   (interactive)
-  (let ((state (oldt-task-get-property "STATE")))
-    (oldt-trigger-function (list :from state :to "TODO"))
+  (let ((state (oldt-task-get-property "STATE"))
+        (default-directory (file-name-directory (buffer-file-name (org-clocking-buffer)))))
+    (oldt-trigger-function (list :from state :to "TODO"))))
+
+(defun oldt-task-trigger-start-hook ()
+  (interactive)
+  (let ((state (oldt-task-get-property "STATE"))
+        (default-directory (file-name-directory (buffer-file-name (org-clocking-buffer)))))
     (oldt-trigger-function (list :from "TODO" :to state))))
 #+end_src
 * Experiments
