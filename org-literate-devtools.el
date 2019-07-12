@@ -115,7 +115,9 @@
     (save-window-excursion
       (org-clock-goto)
       (org-back-to-heading)
-      (org-entry-get (mark) property))))
+      (if (string= property "STATE")
+          (substring-no-properties (org-get-todo-state))
+        (org-entry-get (mark) property)))))
 
 (defun oldt-tangle-relatives (&optional arg target-file lang)
   "Write code blocks to source-specific files.
@@ -407,6 +409,12 @@ used to limit the exported source code blocks by language."
 
 (defun oldt-insert-commit-msg ()
   (insert (oldt-project-get-property "BRANCH") ": " (oldt-task-get-property "ITEM")))
+
+(defun oldt-restart-task ()
+  (interactive)
+  (let ((state (oldt-task-get-property "STATE")))
+    (oldt-trigger-function (list :from state :to "TODO"))
+    (oldt-trigger-function (list :from "TODO" :to state))))
 
 (defun oldt-evaluate-blocks-current-heading ()
   (org-back-to-heading)

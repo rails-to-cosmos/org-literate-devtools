@@ -81,7 +81,6 @@
 * Features
 ** Projects -- headlines with explicit categories
 *** tangle-project
-
 #+begin_src emacs-lisp
 (defun oldt-tangle-buffer ()
   (org-element-map (org-element-parse-buffer 'element) 'src-block
@@ -106,9 +105,7 @@
     (oldt-goto-project)
     (oldt-tangle-subtree-at-point)))
 #+end_src
-
 *** compile-project
-
 #+begin_src emacs-lisp
 (defun oldt-compile-project()
   (interactive)
@@ -122,7 +119,6 @@
 
   (switch-to-buffer-other-window "*compilation*"))
 #+end_src
-
 *** search-project
 #+begin_src emacs-lisp
 (defun oldt-search-project ()
@@ -144,7 +140,6 @@
      property (oldt-search-project))))
 #+end_src
 *** COMMENT toggle-explicit-category
-
 #+begin_src emacs-lisp
 (defun oldt-toggle-explicit-category ()
   (interactive)
@@ -173,9 +168,8 @@
                              (backward-char))))
             (insert explicit-category)))))))
 #+end_src
-
+** Tasks
 *** task-hooks
-
 #+begin_src emacs-lisp
 (defun oldt-trigger-function (change-plist)
   (let ((state-from (substring-no-properties (or (plist-get change-plist :from) "")))
@@ -184,19 +178,19 @@
       (eval (read magic-property)))))
 (add-hook 'org-trigger-hook 'oldt-trigger-function)
 #+end_src
-** Tasks
-*** Get task property
+*** get-task-property
 #+begin_src emacs-lisp
 (defun oldt-task-get-property (property)
   (when (org-clocking-p)
     (save-window-excursion
       (org-clock-goto)
       (org-back-to-heading)
-      (org-entry-get (mark) property))))
+      (if (string= property "STATE")
+          (substring-no-properties (org-get-todo-state))
+        (org-entry-get (mark) property)))))
 #+end_src
 ** Extended tangling
 *** tangle-relatives
-
 #+begin_src emacs-lisp
 (defun oldt-tangle-relatives (&optional arg target-file lang)
   "Write code blocks to source-specific files.
@@ -315,9 +309,7 @@ used to limit the exported source code blocks by language."
                  (caar path-collector))
         path-collector))))
 #+end_src
-
 *** consider tangle-dir
-
 #+begin_src emacs-lisp
 (defun consider-tangle-dir (file-name)
   (if-let (tangle-dir (get-tangle-dir-at-point))
@@ -325,7 +317,6 @@ used to limit the exported source code blocks by language."
         (f-join tangle-dir file-name))
     file-name))
 #+end_src
-
 *** tangle-dir
 #+begin_src emacs-lisp
 (defun get-tangle-dir-at-point ()
@@ -342,7 +333,6 @@ used to limit the exported source code blocks by language."
                unless level return (when tangle-dir (apply 'f-join (reverse tangle-dir)))))))
 #+end_src
 *** collect-relatives
-
 #+begin_src emacs-lisp
 (defun oldt-collect-relative-blocks ()
   (let* ((counter 0) last-heading-pos blocks
@@ -365,9 +355,7 @@ used to limit the exported source code blocks by language."
     ;; Ensure blocks are in the correct order.
     (nreverse blocks)))
 #+end_src
-
 *** get tangle files from subtree
-
 #+begin_src emacs-lisp
 (defun oldt-collect-tangle-files-in-buffer ()
   (-distinct
@@ -410,9 +398,7 @@ used to limit the exported source code blocks by language."
     (oldt-goto-project)
     (oldt-collect-tangle-files-in-subtree)))
 #+end_src
-
 *** goto tangle file
-
 #+begin_src emacs-lisp
 (defun oldt-goto-tangle-file()
   (interactive)
@@ -426,9 +412,7 @@ used to limit the exported source code blocks by language."
     (unless tangle-files
       (error "No tangle files all the way down"))))
 #+end_src
-
 *** locate el files
-
 #+begin_src emacs-lisp
 (defun files-in-below-directory (directory)
   "List the .el files in DIRECTORY and in its sub-directories."
@@ -469,9 +453,7 @@ used to limit the exported source code blocks by language."
     ;; return the filenames
     el-files-list))
 #+end_src
-
 *** ensure local vars
-
 #+begin_src emacs-lisp
 (defun oldt-ensure-local-var(symbol)
   (unless (and (boundp symbol) (local-variable-p symbol))
@@ -479,9 +461,7 @@ used to limit the exported source code blocks by language."
       (add-file-local-variable symbol value)))
   (eval symbol))
 #+end_src
-
 *** build
-
 #+begin_src emacs-lisp
 (defun oldt-build ()
   (interactive)
@@ -501,9 +481,7 @@ used to limit the exported source code blocks by language."
                          total expected unexpected skipped)))
       (apply 'message report))))
 #+end_src
-
 ** Magit integration
-
 #+begin_src emacs-lisp
 (defun oldt-magit-workon ()
   "Switch to project branch."
@@ -520,12 +498,19 @@ used to limit the exported source code blocks by language."
             (magit-branch-or-checkout branch source)
             (magit-branch-checkout branch)))))))
 #+end_src
-
 ** Helpers
 *** Insert commit message template
 #+begin_src emacs-lisp
 (defun oldt-insert-commit-msg ()
   (insert (oldt-project-get-property "BRANCH") ": " (oldt-task-get-property "ITEM")))
+#+end_src
+*** "Restart" current task
+#+begin_src emacs-lisp
+(defun oldt-restart-task ()
+  (interactive)
+  (let ((state (oldt-task-get-property "STATE")))
+    (oldt-trigger-function (list :from state :to "TODO"))
+    (oldt-trigger-function (list :from "TODO" :to state))))
 #+end_src
 * Experiments
 
