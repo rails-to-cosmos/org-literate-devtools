@@ -422,6 +422,15 @@ used to limit the exported source code blocks by language."
         (default-directory (file-name-directory (buffer-file-name (org-clocking-buffer)))))
     (oldt-trigger-function (list :from "TODO" :to state))))
 
+(defun oldt-browse-task ()
+  (save-window-excursion
+    (save-excursion
+      (org-save-outline-visibility
+          (when-let ((ticket (oldt-project-get-property "TICKET")))
+            (oldt-goto-project)
+            (when-let ((ticket-link (alist-get "ticket" org-link-abbrev-alist-local nil nil #'string=)))
+              (browse-url (format ticket-link ticket))))))))
+
 (defun oldt-send-current-to-remote ()
   (interactive)
   (when (and (boundp 'oldt-source-dir)
