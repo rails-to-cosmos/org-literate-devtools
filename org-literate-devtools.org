@@ -519,6 +519,17 @@ used to limit the exported source code blocks by language."
     (oldt-trigger-function (list :from "TODO" :to state))))
 #+end_src
 * Experiments
+** browse-task
+#+begin_src emacs-lisp
+(defun oldt-browse-task ()
+  (save-window-excursion
+    (save-excursion
+      (org-save-outline-visibility
+          (when-let ((ticket (oldt-project-get-property "TICKET")))
+            (oldt-goto-project)
+            (when-let ((ticket-link (alist-get "ticket" org-link-abbrev-alist-local nil nil #'string=)))
+              (browse-url (format ticket-link ticket))))))))
+#+end_src
 ** send-current-to-remote
 #+begin_src emacs-lisp
 (defun oldt-send-current-to-remote ()
