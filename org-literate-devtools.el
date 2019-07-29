@@ -422,6 +422,16 @@ used to limit the exported source code blocks by language."
         (default-directory (file-name-directory (buffer-file-name (org-clocking-buffer)))))
     (oldt-trigger-function (list :from "TODO" :to state))))
 
+(defun oldt-send-current-to-remote ()
+  (interactive)
+  (when (and (boundp 'oldt-source-dir)
+             (boundp 'oldt-target-dir))
+    (copy-file (buffer-file-name)
+               (s-replace oldt-source-dir oldt-target-dir (buffer-file-name))
+               t)))
+
+(add-hook 'after-save-hook 'oldt-send-current-to-remote)
+
 (defun oldt-evaluate-blocks-current-heading ()
   (org-back-to-heading)
   (save-excursion
@@ -430,10 +440,7 @@ used to limit the exported source code blocks by language."
         (narrow-to-region (org-entry-beginning-position) (org-entry-end-position))
         (loop while (condition-case-unless-debug user-error (org-babel-next-src-block) (user-error nil))
               collect (org-babel-execute-src-block nil nil '((:results . "silent"))) into report
-              finally (return (-all-p (lambda (result) (s-contains-p "success" (downcase result))) report)))))
-    ;; (save-window-excursion
-    ;;   )
-    ))
+              finally (return (-all-p (lambda (result) (s-contains-p "success" (downcase result))) report)))))))
 
 (defun oldt-heading-sbe ()
   (interactive)
