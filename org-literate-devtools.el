@@ -55,8 +55,7 @@
   (let ((tiny-menu-items
          `(("project-menu"
             (,(oldt-project-get-property "ITEM")
-             ((?d "Docker" oldt-docker-menu)
-              (?r "Repo" oldt-browse-repo)
+             ((?s "Service" oldt-service-menu)
               (?t "Ticket" oldt-browse-ticket)))))))
     (tiny-menu "project-menu")))
 
@@ -129,6 +128,17 @@
           (substring-no-properties (org-get-todo-state))
         (org-entry-get (mark) property t)))))
 
+(defun oldt-service-menu ()
+  (interactive)
+  (let ((tiny-menu-items
+         `(("oldt-service"
+            (,(oldt-service-get-property "ITEM")
+             ((?d "Docker" oldt-docker-menu)
+              (?r "Repo" oldt-browse-repo)
+              (?c "CI" oldt-service-browse-ci)
+              (?l "Logs" oldt-service-browse-logs)))))))
+    (tiny-menu "oldt-service")))
+
 (defun oldt-service-get-property (prop)
   (let ((service (split-string (oldt-project-get-property "SERVICES"))))
     (setq service (if (> (length service) 1)
@@ -161,7 +171,7 @@
   (interactive)
   (let ((tiny-menu-items
          `(("docker-compose"
-            (,(oldt-project-get-property "ITEM")
+            (,(format "%s/docker/compose" (oldt-service-get-property "ITEM"))
              ((?c "Config" oldt-docker-compose-config)
               (?d "Down" oldt-docker-compose-down)
               (?u "Up" oldt-docker-compose-up)))))))
@@ -171,7 +181,7 @@
   (interactive)
   (let ((tiny-menu-items
          `(("docker"
-            (,(oldt-project-get-property "ITEM")
+            (,(format "%s/docker" (oldt-service-get-property "ITEM"))
              ((?b "Browse" oldt-docker-browse-container)
               (?c "Compose" oldt-docker-compose-menu)))))))
     (tiny-menu "docker")))
@@ -179,6 +189,14 @@
 (defun oldt-browse-repo ()
   (let ((repo-url (oldt-service-get-property "REPO")))
     (browse-url repo-url)))
+
+(defun oldt-service-browse-logs ()
+  (let ((logs-url (oldt-service-get-property "LOGS")))
+    (browse-url logs-url)))
+
+(defun oldt-service-browse-ci ()
+  (let ((ci-url (oldt-service-get-property "CI")))
+    (browse-url ci-url)))
 
 (defun oldt-tangle-relatives (&optional arg target-file lang)
   "Write code blocks to source-specific files.
