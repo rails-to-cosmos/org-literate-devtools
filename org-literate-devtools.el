@@ -56,8 +56,13 @@
          `(("project-menu"
             (,(oldt-project-get-property "ITEM")
              ((?s "Service" oldt-service-menu)
+              (?p "Pull Request" oldt-project-browse-pull-request)
               (?t "Ticket" oldt-browse-ticket)))))))
     (tiny-menu "project-menu")))
+
+(defun oldt-project-browse-pull-request ()
+  (let ((pr-url (oldt-project-get-property "PULL_REQUEST")))
+    (browse-url pr-url)))
 
 (defun oldt-tangle-buffer ()
   (org-element-map (org-element-parse-buffer 'element) 'src-block

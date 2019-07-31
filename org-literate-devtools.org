@@ -82,8 +82,15 @@
          `(("project-menu"
             (,(oldt-project-get-property "ITEM")
              ((?s "Service" oldt-service-menu)
+              (?p "Pull Request" oldt-project-browse-pull-request)
               (?t "Ticket" oldt-browse-ticket)))))))
     (tiny-menu "project-menu")))
+#+end_src
+*** browse-pr
+#+begin_src emacs-lisp
+(defun oldt-project-browse-pull-request ()
+  (let ((pr-url (oldt-project-get-property "PULL_REQUEST")))
+    (browse-url pr-url)))
 #+end_src
 *** tangle-project
 #+begin_src emacs-lisp
