@@ -279,8 +279,10 @@
 *** browse-logs
 #+begin_src emacs-lisp
 (defun oldt-service-browse-logs ()
+  (interactive)
+  (oldt-goto-project)
   (let ((logs-url (oldt-service-get-property "LOGS")))
-    (browse-url logs-url)))
+    (org-open-link-from-string logs-url)))
 #+end_src
 *** browse-ci
 #+begin_src emacs-lisp
