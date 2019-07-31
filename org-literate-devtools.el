@@ -33,16 +33,12 @@
 (defun is-there-tags-at-point (tags)
   (seq-intersection tags (org-get-tags-at)))
 
-(defun oldt-get-node-property (property &optional pom)
+(defun oldt-get-node-property (property)
   (save-excursion
-    (when pom
-      (org-goto-marker-or-bmk pom))
     (unless (org-at-heading-p)
       (org-back-to-heading))
-    (plist-get (org-element--get-node-properties)
-               (cond ((symbolp property) property)
-                     ((stringp property) (intern (format ":%s" property)))
-                     (t (error "Unable to retrieve project property"))))))
+
+    (alist-get property (org-entry-properties) nil nil #'string=)))
 
 (defun oldt-search-ancestor (predicate)
   (save-excursion
@@ -53,6 +49,16 @@
                      (null (org-up-heading-safe))))
      (when (funcall predicate)
        (point-marker)))))
+
+(defun oldt-project-menu ()
+  (interactive)
+  (let ((tiny-menu-items
+         `(("project-menu"
+            (,(oldt-project-get-property "ITEM")
+             ((?d "Docker" oldt-docker-menu)
+              (?r "Repo" oldt-browse-repo)
+              (?t "Ticket" oldt-browse-ticket)))))))
+    (tiny-menu "project-menu")))
 
 (defun oldt-tangle-buffer ()
   (org-element-map (org-element-parse-buffer 'element) 'src-block
@@ -90,9 +96,10 @@
   (switch-to-buffer-other-window "*compilation*"))
 
 (defun oldt-search-project ()
-  (when (org-clocking-p)
-    (org-clock-goto))
-  (oldt-search-ancestor #'(lambda () (oldt-get-node-property "CATEGORY"))))
+  (cond ((org-at-heading-p) t)
+        ((org-clocking-p) (org-clock-goto))
+        (t nil))
+  (oldt-search-ancestor #'(lambda () (plist-get (org-element--get-node-properties) :CATEGORY))))
 
 (defun oldt-goto-project ()
   (interactive)
@@ -100,8 +107,12 @@
 
 (defun oldt-project-get-property (property)
   (save-window-excursion
-    (oldt-get-node-property
-     property (oldt-search-project))))
+    (save-excursion
+      (condition-case nil
+          (progn
+            (oldt-goto-project)
+            (oldt-get-node-property property))
+        (error nil)))))
 
 (defun oldt-trigger-function (change-plist)
   (let ((state-from (substring-no-properties (or (plist-get change-plist :from) "")))
@@ -114,10 +125,60 @@
   (when (org-clocking-p)
     (save-window-excursion
       (org-clock-goto)
-      (org-back-to-heading)
       (if (string= property "STATE")
           (substring-no-properties (org-get-todo-state))
-        (org-entry-get (mark) property)))))
+        (org-entry-get (mark) property t)))))
+
+(defun oldt-service-get-property (prop)
+  (let ((service (split-string (oldt-project-get-property "SERVICES"))))
+    (setq service (if (> (length service) 1)
+                      (org-completing-read "Service: " service)
+                    (car service)))
+    (save-window-excursion
+      (save-excursion
+        (org-id-goto service)
+        (alist-get prop (org-entry-properties) nil nil #'string=)))))
+
+(defun oldt-docker-browse-container ()
+  (interactive)
+  (oldt-goto-project)
+  (let ((container (oldt-service-get-property "CONTAINER")))
+        (org-open-link-from-string (format "[[docker:%s]]" container))))
+
+(defun oldt-docker-compose-config ()
+  (let ((path (oldt-service-get-property "PATH")))
+    (find-file (concat path "/docker-compose.yml"))))
+
+(defun oldt-docker-compose-up ()
+  (let ((path (oldt-service-get-property "PATH")))
+    (async-shell-command (format "cd %s && docker-compose up --force-recreate --build -d" path))))
+
+(defun oldt-docker-compose-down ()
+  (let ((path (oldt-service-get-property "PATH")))
+    (async-shell-command (format "cd %s && docker-compose down && docker image prune -f" path))))
+
+(defun oldt-docker-compose-menu ()
+  (interactive)
+  (let ((tiny-menu-items
+         `(("docker-compose"
+            (,(oldt-project-get-property "ITEM")
+             ((?c "Config" oldt-docker-compose-config)
+              (?d "Down" oldt-docker-compose-down)
+              (?u "Up" oldt-docker-compose-up)))))))
+    (tiny-menu "docker-compose")))
+
+(defun oldt-docker-menu ()
+  (interactive)
+  (let ((tiny-menu-items
+         `(("docker"
+            (,(oldt-project-get-property "ITEM")
+             ((?b "Browse" oldt-docker-browse-container)
+              (?c "Compose" oldt-docker-compose-menu)))))))
+    (tiny-menu "docker")))
+
+(defun oldt-browse-repo ()
+  (let ((repo-url (oldt-service-get-property "REPO")))
+    (browse-url repo-url)))
 
 (defun oldt-tangle-relatives (&optional arg target-file lang)
   "Write code blocks to source-specific files.
@@ -422,7 +483,7 @@ used to limit the exported source code blocks by language."
         (default-directory (file-name-directory (buffer-file-name (org-clocking-buffer)))))
     (oldt-trigger-function (list :from "TODO" :to state))))
 
-(defun oldt-browse-task ()
+(defun oldt-browse-ticket ()
   (save-window-excursion
     (save-excursion
       (org-save-outline-visibility
