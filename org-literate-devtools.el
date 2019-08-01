@@ -56,9 +56,33 @@
          `(("project-menu"
             (,(oldt-project-get-property "ITEM")
              ((?s "Service" oldt-service-menu)
+              (?i "Insert" oldt-project-insert-menu)
               (?p "Pull Request" oldt-project-browse-pull-request)
               (?t "Ticket" oldt-browse-ticket)))))))
     (tiny-menu "project-menu")))
+
+(defun oldt-project-insert-menu ()
+  (interactive)
+  (let ((tiny-menu-items
+         `(("project-insert-menu"
+            ("Insert"
+             ((?m "Commit message" oldt-project-insert-commit-message)
+              (?t "Ticket" oldt-project-insert-ticket)
+              (?b "Branch" oldt-project-insert-branch)))))))
+    (tiny-menu "project-insert-menu")))
+
+(defun oldt-project-insert-commit-message (msg)
+  (interactive "sCommit message: ")
+  (oldt-project-insert-ticket)
+  (insert ": " msg "."))
+
+(defun oldt-project-insert-ticket ()
+  (interactive)
+  (insert (oldt-project-get-property "TICKET")))
+
+(defun oldt-project-insert-branch ()
+  (interactive)
+  (insert (oldt-project-get-property "BRANCH")))
 
 (defun oldt-project-browse-pull-request ()
   (let ((pr-url (oldt-project-get-property "PULL_REQUEST")))
@@ -158,7 +182,12 @@
   (interactive)
   (oldt-goto-project)
   (let ((container (oldt-service-get-property "CONTAINER")))
-        (org-open-link-from-string (format "[[docker:%s]]" container))))
+    (org-open-link-from-string (format "[[docker:%s]]" container))))
+
+(defun oldt-docker-container-logs ()
+  (oldt-goto-project)
+  (let ((container (oldt-service-get-property "CONTAINER")))
+    (org-open-link-from-string (format "[[docker-logs:%s]]" container))))
 
 (defun oldt-docker-compose-config ()
   (let ((path (oldt-service-get-property "PATH")))
@@ -188,6 +217,7 @@
          `(("docker"
             (,(format "%s/docker" (oldt-service-get-property "ITEM"))
              ((?b "Browse" oldt-docker-browse-container)
+              (?l "Logs" oldt-docker-container-logs)
               (?c "Compose" oldt-docker-compose-menu)))))))
     (tiny-menu "docker")))
 
@@ -196,8 +226,10 @@
     (browse-url repo-url)))
 
 (defun oldt-service-browse-logs ()
+  (interactive)
+  (oldt-goto-project)
   (let ((logs-url (oldt-service-get-property "LOGS")))
-    (browse-url logs-url)))
+    (org-open-link-from-string logs-url)))
 
 (defun oldt-service-browse-ci ()
   (let ((ci-url (oldt-service-get-property "CI")))
