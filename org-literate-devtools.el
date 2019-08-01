@@ -514,12 +514,12 @@ used to limit the exported source code blocks by language."
   (save-window-excursion
     (save-excursion
       (org-clock-goto)
-      (let* ((repo (oldt-project-get-property "REPO"))
+      (let* ((default-directory (oldt-service-get-property "PATH"))
              (branch (oldt-project-get-property "BRANCH"))
-             (source (oldt-project-get-property "SOURCE_BRANCH"))
-             (default-directory (concat "~/work/" repo)))
-        (unless (string= branch (magit-get-current-branch))
-          (when (y-or-n-p "Switch to task branch?")
+             (source (oldt-project-get-property "SOURCE_BRANCH")))
+        (if (string= branch (magit-get-current-branch))
+            (message "Already on branch %s" branch)
+          (when (y-or-n-p (format "Switch to task branch (%s)?" branch))
             (magit-branch-or-checkout branch source)
             (magit-branch-checkout branch)))))))
 
