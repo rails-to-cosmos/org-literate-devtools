@@ -538,6 +538,23 @@ used to limit the exported source code blocks by language."
         (default-directory (file-name-directory (buffer-file-name (org-clocking-buffer)))))
     (oldt-trigger-function (list :from "TODO" :to state))))
 
+(defun oldt-service-add-class-variables (service path vars)
+  (dir-locals-set-class-variables service vars)
+  (dir-locals-set-directory-class path service))
+
+(defun oldt-project-workon--clojure ()
+  "Run cider if it is a clojure service."
+  (interactive)
+  (save-window-excursion
+    (save-excursion
+      (when (org-clocking-p)
+        (org-clock-goto))
+      (let* ((service-path (oldt-service-get-property "PATH"))
+             (clojure-project-fn (concat service-path "/project.clj")))
+        (when (file-exists-p clojure-project-fn)
+          (find-file clojure-project-fn)
+          (call-interactively #'cider-jack-in))))))
+
 (defun oldt-browse-ticket ()
   (save-window-excursion
     (save-excursion

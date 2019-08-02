@@ -650,6 +650,27 @@ used to limit the exported source code blocks by language."
     (oldt-trigger-function (list :from "TODO" :to state))))
 #+end_src
 * Experiments
+** class-variables
+#+begin_src emacs-lisp
+(defun oldt-service-add-class-variables (service path vars)
+  (dir-locals-set-class-variables service vars)
+  (dir-locals-set-directory-class path service))
+#+end_src
+** clojure-intergration
+#+begin_src emacs-lisp
+(defun oldt-project-workon--clojure ()
+  "Run cider if it is a clojure service."
+  (interactive)
+  (save-window-excursion
+    (save-excursion
+      (when (org-clocking-p)
+        (org-clock-goto))
+      (let* ((service-path (oldt-service-get-property "PATH"))
+             (clojure-project-fn (concat service-path "/project.clj")))
+        (when (file-exists-p clojure-project-fn)
+          (find-file clojure-project-fn)
+          (call-interactively #'cider-jack-in))))))
+#+end_src
 ** browse-ticket
 #+begin_src emacs-lisp
 (defun oldt-browse-ticket ()
