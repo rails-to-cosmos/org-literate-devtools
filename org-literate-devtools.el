@@ -235,6 +235,12 @@
   (let ((ci-url (oldt-service-get-property "CI")))
     (browse-url ci-url)))
 
+(defun oldt-tt (&rest mappings)
+  (loop for mapping in mappings
+        when (apply 'oldt-headline-contains-tags-p (butlast mapping))
+        collect (car (last mapping)) into result
+        finally (return (if result (car result) "no"))))
+
 (defun oldt-tangle-relatives (&optional arg target-file lang)
   "Write code blocks to source-specific files.
 Extract the bodies of all source code blocks from the current

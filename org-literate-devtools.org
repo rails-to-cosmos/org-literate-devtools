@@ -315,6 +315,14 @@
     (browse-url ci-url)))
 #+end_src
 ** Extended tangling
+*** tangle-by-tags
+#+begin_src emacs-lisp
+(defun oldt-tt (&rest mappings)
+  (loop for mapping in mappings
+        when (apply 'oldt-headline-contains-tags-p (butlast mapping))
+        collect (car (last mapping)) into result
+        finally (return (if result (car result) "no"))))
+#+end_src
 *** tangle-relatives
 #+begin_src emacs-lisp
 (defun oldt-tangle-relatives (&optional arg target-file lang)
