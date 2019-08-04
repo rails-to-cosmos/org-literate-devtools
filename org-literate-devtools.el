@@ -30,8 +30,8 @@
 
 ;;; Code:
 
-(defun is-there-tags-at-point (tags)
-  (seq-intersection tags (org-get-tags-at)))
+(defun oldt-headline-contains-tags-p (&rest tags)
+  (equal (seq-intersection tags (org-get-tags-at)) tags))
 
 (defun oldt-get-node-property (property)
   (save-excursion

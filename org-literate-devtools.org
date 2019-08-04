@@ -5,7 +5,6 @@
 #+PROPERTY: header-args:emacs-lisp :noweb yes :tangle yes :results silent
 
 * Hello
-
 #+begin_src emacs-lisp
 ;;; oldt.el --- org-driven development
 
@@ -39,16 +38,13 @@
 
 ;;; Code:
 #+end_src
-
 * Core
 ** org-element helpers
-*** is-there-tags-at-point
-
+*** headline-tags
 #+begin_src emacs-lisp
-(defun is-there-tags-at-point (tags)
-  (seq-intersection tags (org-get-tags-at)))
+(defun oldt-headline-contains-tags-p (&rest tags)
+  (equal (seq-intersection tags (org-get-tags-at)) tags))
 #+end_src
-
 *** get-node-property
 #+begin_src emacs-lisp
 (defun oldt-get-node-property (property)
@@ -59,7 +55,6 @@
     (alist-get property (org-entry-properties) nil nil #'string=)))
 #+end_src
 *** search-ancestor
-
 #+begin_src emacs-lisp
 (defun oldt-search-ancestor (predicate)
   (save-excursion
@@ -71,7 +66,6 @@
      (when (funcall predicate)
        (point-marker)))))
 #+end_src
-
 * Features
 ** Projects
 *** menu
@@ -720,12 +714,10 @@ used to limit the exported source code blocks by language."
   (org-update-statistics-cookies t))
 #+end_src
 * Provision
-
 #+begin_src emacs-lisp
 (provide 'org-literate-devtools)
 ;;; org-literate-devtools.el ends here
 #+end_src
-
 * Settings
 # Local Variables:
 # org-literate-test-selector: "^oldt-test-*"
