@@ -555,13 +555,14 @@ used to limit the exported source code blocks by language."
   (interactive)
   (save-window-excursion
     (save-excursion
-      (when (org-clocking-p)
-        (org-clock-goto))
-      (let* ((service-path (oldt-service-get-property "PATH"))
-             (clojure-project-fn (concat service-path "/project.clj")))
+      (let* ((proj-dir (oldt-service-get-property "PATH"))
+             (clojure-project-fn (concat proj-dir "/project.clj")))
         (when (file-exists-p clojure-project-fn)
           (find-file clojure-project-fn)
-          (call-interactively #'cider-jack-in))))))
+          (unless (condition-case nil
+                      (cider-nrepl-eval-session)
+                    (error nil))
+            (call-interactively #'cider-jack-in)))))))
 
 (defun oldt-browse-ticket ()
   (save-window-excursion
