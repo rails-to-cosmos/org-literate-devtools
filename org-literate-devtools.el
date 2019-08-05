@@ -237,7 +237,8 @@
 
 (defun oldt-tt (&rest mappings)
   (loop for mapping in mappings
-        when (apply 'oldt-headline-contains-tags-p (butlast mapping))
+        when (or (eq (car mapping) t) ;; "else" clause
+                 (apply 'oldt-headline-contains-tags-p (butlast mapping)))
         collect (car (last mapping)) into result
         finally (return (if result (car result) "no"))))
 
@@ -522,10 +523,11 @@ used to limit the exported source code blocks by language."
       (org-clock-goto)
       (let* ((default-directory (oldt-service-get-property "PATH"))
              (branch (oldt-project-get-property "BRANCH"))
+             (current-branch (magit-get-current-branch))
              (source (oldt-project-get-property "SOURCE_BRANCH")))
-        (if (string= branch (magit-get-current-branch))
+        (if (string= branch current-branch)
             (message "Already on branch %s" branch)
-          (when (y-or-n-p (format "Switch to task branch (%s)?" branch))
+          (when (y-or-n-p (format "Switch to task branch %s (current %s)?" branch current-branch))
             (magit-branch-or-checkout branch source)
             (magit-branch-checkout branch)))))))
 
