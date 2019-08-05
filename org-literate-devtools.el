@@ -142,6 +142,12 @@
             (oldt-get-node-property property))
         (error nil)))))
 
+(defun oldt-project-set-property (property value)
+  (save-window-excursion
+    (save-excursion
+      (oldt-goto-project)
+      (org-set-property property value))))
+
 (defun oldt-trigger-function (change-plist)
   (let ((state-from (substring-no-properties (or (plist-get change-plist :from) "")))
         (state-to (substring-no-properties (or (plist-get change-plist :to) ""))))
