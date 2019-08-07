@@ -1,3 +1,5 @@
+;; -*- lexical-binding: t; -*-
+
 ;;; oldt.el --- org-driven development
 
 ;; Copyright (C) 2019 Dmitry Akatov
@@ -31,7 +33,7 @@
 ;;; Code:
 
 (defun oldt-headline-contains-tags-p (&rest tags)
-  (equal (seq-intersection tags (org-get-tags-at)) tags))
+  (equal (seq-intersection tags (org-get-tags)) tags))
 
 (defun oldt-get-node-property (property)
   (save-excursion
@@ -58,26 +60,24 @@
 
 (defun oldt-project-menu ()
   (interactive)
-  (if (oldt-project-get-property "ITEM")
-      (let ((tiny-menu-items
-             `(("project-menu"
-                (,(oldt-project-get-property "ITEM")
-                 ((?s "Service" oldt-service-menu)
-                  (?i "Insert" oldt-project-insert-menu)
-                  (?p "Pull Request" oldt-project-browse-pull-request)
-                  (?t "Ticket" oldt-browse-ticket)))))))
-        (tiny-menu "project-menu"))
+  (let ((items `("oldt-project-browse-pull-request"
+                 "oldt-browse-ticket"
+                 "oldt-docker-menu"
+                 "oldt-browse-repo"
+                 "oldt-service-browse-ci"
+                 "oldt-service-browse-logs"
+                 "oldt-project-insert-commit-message"
+                 "oldt-project-insert-ticket"
+                 "oldt-project-insert-branch"
+                 "oldt-docker-browse-container"
+                 "oldt-docker-container-logs"
+                 "oldt-docker-compose-config"
+                 "oldt-docker-compose-down"
+                 "oldt-docker-compose-up"
+                 "oldt-docker-compose-restart")))
+    (if-let (project-name (oldt-project-get-property "ITEM"))
+        (funcall (intern (org-completing-read (concat project-name ": ") items))))
     (message "Unable to find project.")))
-
-(defun oldt-project-insert-menu ()
-  (interactive)
-  (let ((tiny-menu-items
-         `(("project-insert-menu"
-            ("Insert"
-             ((?m "Commit message" oldt-project-insert-commit-message)
-              (?t "Ticket" oldt-project-insert-ticket)
-              (?b "Branch" oldt-project-insert-branch)))))))
-    (tiny-menu "project-insert-menu")))
 
 (defun oldt-project-insert-commit-message (msg)
   (interactive "sCommit message: ")
@@ -181,17 +181,6 @@
           (substring-no-properties (org-get-todo-state))
         (org-entry-get (mark) property t)))))
 
-(defun oldt-service-menu ()
-  (interactive)
-  (let ((tiny-menu-items
-         `(("oldt-service"
-            (,(oldt-service-get-property "ITEM")
-             ((?d "Docker" oldt-docker-menu)
-              (?r "Repo" oldt-browse-repo)
-              (?c "CI" oldt-service-browse-ci)
-              (?l "Logs" oldt-service-browse-logs)))))))
-    (tiny-menu "oldt-service")))
-
 (defun oldt-service-get-property (prop)
   (let ((service (split-string (oldt-project-get-property "SERVICES"))))
     (setq service (if (> (length service) 1)
@@ -201,6 +190,8 @@
       (save-excursion
         (org-id-goto service)
         (alist-get prop (org-entry-properties) nil nil #'string=)))))
+
+(require 'aio)
 
 (defun oldt-docker-browse-container ()
   (interactive)
@@ -217,33 +208,32 @@
   (let ((path (oldt-service-get-property "PATH")))
     (find-file (concat path "/docker-compose.yml"))))
 
-(defun oldt-docker-compose-up ()
-  (let ((path (oldt-service-get-property "PATH")))
-    (async-shell-command (format "cd %s && docker-compose up --force-recreate --build -d" path))))
+;; (aio-defun oldt-service-start-process (pname buf &rest args)
+;;   (let* ((default-directory (oldt-service-get-property "PATH"))
+;;          (proc (apply #'start-process pname buf args)))
+;;     (while (string= (process-status proc) "run")
+;;       (aio-await (aio-sleep 1)))
+;;     (message "Process exited with status %s" (process-status proc))))
 
-(defun oldt-docker-compose-down ()
-  (let ((path (oldt-service-get-property "PATH")))
-    (async-shell-command (format "cd %s && docker-compose down && docker image prune -f" path))))
+(aio-defun oldt-docker-compose-down ()
+  (let* ((default-directory (oldt-service-get-property "PATH"))
+         (proc (start-process "oldt-docker-process" "*oldt-docker-output*"
+                              "docker-compose" "down")))
+    (while (string= (process-status proc) "run")
+      (aio-await (aio-sleep 1)))
+    (message "Process exited with status %s" (process-status proc))))
 
-(defun oldt-docker-compose-menu ()
-  (interactive)
-  (let ((tiny-menu-items
-         `(("docker-compose"
-            (,(format "%s/docker/compose" (oldt-service-get-property "ITEM"))
-             ((?c "Config" oldt-docker-compose-config)
-              (?d "Down" oldt-docker-compose-down)
-              (?u "Up" oldt-docker-compose-up)))))))
-    (tiny-menu "docker-compose")))
+(aio-defun oldt-docker-compose-up ()
+  (let* ((default-directory (oldt-service-get-property "PATH"))
+         (proc (start-process "oldt-docker-process" "*oldt-docker-output*"
+                              "docker-compose" "up" "--force-recreate" "--build" "-d")))
+    (while (string= (process-status proc) "run")
+      (aio-await (aio-sleep 1)))
+    (message "Process exited with status %s" (process-status proc))))
 
-(defun oldt-docker-menu ()
-  (interactive)
-  (let ((tiny-menu-items
-         `(("docker"
-            (,(format "%s/docker" (oldt-service-get-property "ITEM"))
-             ((?b "Browse" oldt-docker-browse-container)
-              (?l "Logs" oldt-docker-container-logs)
-              (?c "Compose" oldt-docker-compose-menu)))))))
-    (tiny-menu "docker")))
+(aio-defun oldt-docker-compose-restart ()
+  (aio-await (oldt-docker-compose-down))
+  (aio-await (oldt-docker-compose-up)))
 
 (defun oldt-browse-repo ()
   (let ((repo-url (oldt-service-get-property "REPO")))
@@ -587,8 +577,7 @@ used to limit the exported source code blocks by language."
 (defun oldt-jira-capture-ticket-title ()
   (when-let (project (oldt-at-project-p))
     (when-let (ticket (oldt-project-get-property "TICKET"))
-      (oldt-jira-get-ticket-summary
-       ticket
+      (oldt-jira-get-ticket-summary ticket
        (cl-function
         (lambda (&key data &allow-other-keys)
           (save-window-excursion
