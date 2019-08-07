@@ -50,6 +50,12 @@
      (when (funcall predicate)
        (point-marker)))))
 
+(defun oldt-at-project-p ()
+  (save-excursion
+    (org-back-to-heading)
+    (org-beginning-of-line)
+    (plist-get (org-element--get-node-properties) :CATEGORY)))
+
 (defun oldt-project-menu ()
   (interactive)
   (if (oldt-project-get-property "ITEM")
@@ -126,10 +132,10 @@
   (switch-to-buffer-other-window "*compilation*"))
 
 (defun oldt-search-project ()
-  (cond ((org-at-heading-p) t)
+  (cond ((and (org-at-heading-p) (oldt-at-project-p)) t)
         ((org-clocking-p) (org-clock-goto))
         (t nil))
-  (oldt-search-ancestor #'(lambda () (plist-get (org-element--get-node-properties) :CATEGORY))))
+  (oldt-search-ancestor 'oldt-at-project-p))
 
 (defun oldt-goto-project ()
   (interactive)
@@ -574,9 +580,26 @@ used to limit the exported source code blocks by language."
 
 (defun oldt-jira-get-ticket-summary (ticket callback)
   (request (concat "https://flocktory.atlassian.net/rest/api/latest/issue/" ticket)
-   :headers `(("Authorization" . ,(oldt-jira-get-auth-token)))
-   :parser 'json-read
-   :success callback))
+           :headers `(("Authorization" . ,(oldt-jira-get-auth-token)))
+           :parser 'json-read
+           :success callback))
+
+(defun oldt-jira-capture-ticket-title ()
+  (when-let (project (oldt-at-project-p))
+    (when-let (ticket (oldt-project-get-property "TICKET"))
+      (oldt-jira-get-ticket-summary
+       ticket
+       (cl-function
+        (lambda (&key data &allow-other-keys)
+          (save-window-excursion
+            (save-excursion
+              (let-alist data
+                (message "Going to last stored headline")
+                (org-capture-goto-last-stored)
+                (message "Setting ITEM property extracted from Jira task")
+                (oldt-project-set-property "ITEM" .fields.summary))))))))))
+
+(add-hook 'org-capture-before-finalize-hook 'oldt-jira-capture-ticket-title)
 
 (defun oldt-service-add-class-variables (service path vars)
   (dir-locals-set-class-variables service vars)
