@@ -76,13 +76,15 @@
                  "oldt-docker-compose-up"
                  "oldt-docker-compose-restart")))
     (if-let (project-name (oldt-project-get-property "ITEM"))
-        (funcall (intern (org-completing-read (concat project-name ": ") items))))
-    (message "Unable to find project.")))
+        (funcall (intern (org-completing-read (concat project-name ": ") items)))
+      (message "Unable to find project."))))
 
-(defun oldt-project-insert-commit-message (msg)
-  (interactive "sCommit message: ")
-  (oldt-project-insert-ticket)
-  (insert ": " msg "."))
+(defun oldt-project-insert-commit-message ()
+  (let ((msg (read-string "Commit message: "
+                          (concat (oldt-project-get-property "TICKET") ": "))))
+    (insert msg)
+    (unless (s-ends-with-p "." msg)
+      (insert "."))))
 
 (defun oldt-project-insert-ticket ()
   (interactive)
