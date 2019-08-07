@@ -52,14 +52,16 @@
 
 (defun oldt-project-menu ()
   (interactive)
-  (let ((tiny-menu-items
-         `(("project-menu"
-            (,(oldt-project-get-property "ITEM")
-             ((?s "Service" oldt-service-menu)
-              (?i "Insert" oldt-project-insert-menu)
-              (?p "Pull Request" oldt-project-browse-pull-request)
-              (?t "Ticket" oldt-browse-ticket)))))))
-    (tiny-menu "project-menu")))
+  (if (oldt-project-get-property "ITEM")
+      (let ((tiny-menu-items
+             `(("project-menu"
+                (,(oldt-project-get-property "ITEM")
+                 ((?s "Service" oldt-service-menu)
+                  (?i "Insert" oldt-project-insert-menu)
+                  (?p "Pull Request" oldt-project-browse-pull-request)
+                  (?t "Ticket" oldt-browse-ticket)))))))
+        (tiny-menu "project-menu"))
+    (message "Unable to find project.")))
 
 (defun oldt-project-insert-menu ()
   (interactive)
@@ -146,7 +148,17 @@
   (save-window-excursion
     (save-excursion
       (oldt-goto-project)
-      (org-set-property property value))))
+      (cond ((string= property "ITEM")
+             (let ((beg (save-excursion
+                          (org-beginning-of-line)
+                          (point)))
+                   (end (save-excursion
+                          (org-end-of-line)
+                          (point))))
+               (kill-region beg end)
+               (org-beginning-of-line)
+               (insert value)))
+            (t (org-set-property property value))))))
 
 (defun oldt-trigger-function (change-plist)
   (let ((state-from (substring-no-properties (or (plist-get change-plist :from) "")))
@@ -551,6 +563,20 @@ used to limit the exported source code blocks by language."
   (let ((state (oldt-task-get-property "STATE"))
         (default-directory (file-name-directory (buffer-file-name (org-clocking-buffer)))))
     (oldt-trigger-function (list :from "TODO" :to state))))
+
+(require 'request)
+
+(defvar oldt-jira-login "" "Your Jira email address")
+(defvar oldt-jira-api-token "" "Jira API token, see how to generate it here: https://confluence.atlassian.com/cloud/api-tokens-938839638.html")
+
+(defun oldt-jira-get-auth-token ()
+  (concat "Basic " (base64-encode-string (concat oldt-jira-login ":" oldt-jira-api-token))))
+
+(defun oldt-jira-get-ticket-summary (ticket callback)
+  (request (concat "https://flocktory.atlassian.net/rest/api/latest/issue/" ticket)
+   :headers `(("Authorization" . ,(oldt-jira-get-auth-token)))
+   :parser 'json-read
+   :success callback))
 
 (defun oldt-service-add-class-variables (service path vars)
   (dir-locals-set-class-variables service vars)
