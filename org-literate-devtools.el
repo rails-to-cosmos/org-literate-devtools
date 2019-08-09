@@ -60,15 +60,17 @@
 
 (defun oldt-project-menu ()
   (interactive)
-  (let ((items `("oldt-project-browse-pull-request"
-                 "oldt-browse-ticket"
-                 "oldt-docker-menu"
-                 "oldt-browse-repo"
+  (let ((items `("oldt-service-browse-repo"
                  "oldt-service-browse-ci"
                  "oldt-service-browse-logs"
+
+                 "oldt-project-browse-pull-request"
+                 "oldt-project-browse-ticket"
                  "oldt-project-insert-commit-message"
                  "oldt-project-insert-ticket"
                  "oldt-project-insert-branch"
+
+                 "oldt-docker-menu"
                  "oldt-docker-browse-container"
                  "oldt-docker-container-logs"
                  "oldt-docker-compose-config"
@@ -168,6 +170,15 @@
                (insert value)))
             (t (org-set-property property value))))))
 
+(defun oldt-project-browse-ticket ()
+  (save-window-excursion
+    (save-excursion
+      (org-save-outline-visibility
+          (when-let ((ticket (oldt-project-get-property "TICKET")))
+            (oldt-goto-project)
+            (when-let ((ticket-link (alist-get "ticket" org-link-abbrev-alist-local nil nil #'string=)))
+              (browse-url (format ticket-link ticket))))))))
+
 (defun oldt-trigger-function (change-plist)
   (let ((state-from (substring-no-properties (or (plist-get change-plist :from) "")))
         (state-to (substring-no-properties (or (plist-get change-plist :to) ""))))
@@ -210,34 +221,27 @@
   (let ((path (oldt-service-get-property "PATH")))
     (find-file (concat path "/docker-compose.yml"))))
 
-;; (aio-defun oldt-service-start-process (pname buf &rest args)
-;;   (let* ((default-directory (oldt-service-get-property "PATH"))
-;;          (proc (apply #'start-process pname buf args)))
-;;     (while (string= (process-status proc) "run")
-;;       (aio-await (aio-sleep 1)))
-;;     (message "Process exited with status %s" (process-status proc))))
+(aio-defun oldt-service-start-process (pname buf &rest args)
+  (message "org-literate-devtools: Start process \"%s\"" pname)
+  (let* ((default-directory (oldt-service-get-property "PATH"))
+         (proc (apply #'start-process pname buf args)))
+    (while (string= (process-status proc) "run")
+      (aio-await (aio-sleep 1)))
+    (message "org-literate-devtools: Process \"%s\" exited with status \"%s\"" pname (process-status proc))))
 
 (aio-defun oldt-docker-compose-down ()
-  (let* ((default-directory (oldt-service-get-property "PATH"))
-         (proc (start-process "oldt-docker-process" "*oldt-docker-output*"
-                              "docker-compose" "down")))
-    (while (string= (process-status proc) "run")
-      (aio-await (aio-sleep 1)))
-    (message "Process exited with status %s" (process-status proc))))
+  (aio-await (oldt-service-start-process "docker-compose down" "*oldt-docker-output*" "docker-compose" "down"))
+  (aio-await (oldt-service-start-process "docker image prune" "*oldt-docker-output*" "docker" "image" "prune" "-f")))
 
 (aio-defun oldt-docker-compose-up ()
-  (let* ((default-directory (oldt-service-get-property "PATH"))
-         (proc (start-process "oldt-docker-process" "*oldt-docker-output*"
-                              "docker-compose" "up" "--force-recreate" "--build" "-d")))
-    (while (string= (process-status proc) "run")
-      (aio-await (aio-sleep 1)))
-    (message "Process exited with status %s" (process-status proc))))
+  (aio-await (oldt-service-start-process "docker-compose up" "*oldt-docker-output*"
+                                         "docker-compose" "up" "--force-recreate" "--build" "-d")))
 
 (aio-defun oldt-docker-compose-restart ()
   (aio-await (oldt-docker-compose-down))
   (aio-await (oldt-docker-compose-up)))
 
-(defun oldt-browse-repo ()
+(defun oldt-service-browse-repo ()
   (let ((repo-url (oldt-service-get-property "REPO")))
     (browse-url repo-url)))
 
@@ -609,15 +613,6 @@ used to limit the exported source code blocks by language."
                       (cider-nrepl-eval-session)
                     (error nil))
             (call-interactively #'cider-jack-in)))))))
-
-(defun oldt-browse-ticket ()
-  (save-window-excursion
-    (save-excursion
-      (org-save-outline-visibility
-          (when-let ((ticket (oldt-project-get-property "TICKET")))
-            (oldt-goto-project)
-            (when-let ((ticket-link (alist-get "ticket" org-link-abbrev-alist-local nil nil #'string=)))
-              (browse-url (format ticket-link ticket))))))))
 
 (defun oldt-send-current-to-remote ()
   (interactive)
