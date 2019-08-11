@@ -84,25 +84,25 @@
 #+begin_src emacs-lisp
 (defun oldt-project-menu ()
   (interactive)
-  (let ((items `("oldt-service-browse-repo"
-                 "oldt-service-browse-ci"
-                 "oldt-service-browse-logs"
+  (let ((items `("service-eshell"
+                 "service-browse-repo"
+                 "service-browse-ci"
+                 "service-browse-logs"
 
-                 "oldt-project-browse-pull-request"
-                 "oldt-project-browse-ticket"
-                 "oldt-project-insert-commit-message"
-                 "oldt-project-insert-ticket"
-                 "oldt-project-insert-branch"
+                 "service-docker-browse-container"
+                 "service-docker-container-logs"
+                 "service-docker-compose-config"
+                 "service-docker-compose-down"
+                 "service-docker-compose-up"
+                 "service-docker-compose-restart"
 
-                 "oldt-docker-menu"
-                 "oldt-docker-browse-container"
-                 "oldt-docker-container-logs"
-                 "oldt-docker-compose-config"
-                 "oldt-docker-compose-down"
-                 "oldt-docker-compose-up"
-                 "oldt-docker-compose-restart")))
+                 "project-browse-pull-request"
+                 "project-browse-ticket"
+                 "project-insert-commit-message"
+                 "project-insert-ticket"
+                 "project-insert-branch")))
     (if-let (project-name (oldt-project-get-property "ITEM"))
-        (funcall (intern (org-completing-read (concat project-name ": ") items)))
+        (funcall (intern (concat "oldt-" (org-completing-read (concat project-name ": ") items))))
       (message "Unable to find project."))))
 
 (defun oldt-project-insert-commit-message ()
@@ -131,9 +131,7 @@
 (defun oldt-tangle-buffer ()
   (org-element-map (org-element-parse-buffer 'element) 'src-block
     (lambda (datum)
-      (let* ((lang (org-element-property :language datum))
-             (ext (or (cdr (assoc lang org-babel-tangle-lang-exts)) lang))
-             (point (org-element-property :begin datum)))
+      (let ((point (org-element-property :begin datum)))
         (org-with-point-at point
           (oldt-tangle-relatives))))))
 
@@ -252,7 +250,7 @@
 *** task-hooks
 #+begin_src emacs-lisp
 (defun oldt-trigger-function (change-plist)
-  (let ((state-from (substring-no-properties (or (plist-get change-plist :from) "")))
+  (let (;; (state-from (substring-no-properties (or (plist-get change-plist :from) "")))
         (state-to (substring-no-properties (or (plist-get change-plist :to) ""))))
     (when-let (magic-property (oldt-project-get-property (format "TASK_%s" state-to)))
       (eval (read magic-property)))))
@@ -269,6 +267,12 @@
         (org-entry-get (mark) property t)))))
 #+end_src
 ** Services
+*** shell
+#+begin_src emacs-lisp
+(defun oldt-service-eshell ()
+  (spawn-custom-shell (format "*%s-eshell*" (oldt-service-get-property "ITEM"))
+                      (oldt-service-get-property "PATH")))
+#+end_src
 *** get-service-property
 #+begin_src emacs-lisp
 (defun oldt-service-get-property (prop)
@@ -285,18 +289,18 @@
 #+begin_src emacs-lisp
 (require 'aio)
 
-(defun oldt-docker-browse-container ()
+(defun oldt-service-docker-browse-container ()
   (interactive)
   (oldt-goto-project)
   (let ((container (oldt-service-get-property "CONTAINER")))
     (org-open-link-from-string (format "[[docker:%s]]" container))))
 
-(defun oldt-docker-container-logs ()
+(defun oldt-service-docker-container-logs ()
   (oldt-goto-project)
   (let ((container (oldt-service-get-property "CONTAINER")))
     (org-open-link-from-string (format "[[docker-logs:%s]]" container))))
 
-(defun oldt-docker-compose-config ()
+(defun oldt-service-docker-compose-config ()
   (let ((path (oldt-service-get-property "PATH")))
     (find-file (concat path "/docker-compose.yml"))))
 
@@ -308,17 +312,17 @@
       (aio-await (aio-sleep 1)))
     (message "org-literate-devtools: Process \"%s\" exited with status \"%s\"" pname (process-status proc))))
 
-(aio-defun oldt-docker-compose-down ()
-  (aio-await (oldt-service-start-process "docker-compose down" "*oldt-docker-output*" "docker-compose" "down"))
-  (aio-await (oldt-service-start-process "docker image prune" "*oldt-docker-output*" "docker" "image" "prune" "-f")))
+(aio-defun oldt-service-docker-compose-down ()
+  (aio-await (oldt-service-start-process "docker-compose down" "*oldt-service-docker-output*" "docker-compose" "down"))
+  (aio-await (oldt-service-start-process "docker image prune" "*oldt-service-docker-output*" "docker" "image" "prune" "-f")))
 
-(aio-defun oldt-docker-compose-up ()
-  (aio-await (oldt-service-start-process "docker-compose up" "*oldt-docker-output*"
+(aio-defun oldt-service-docker-compose-up ()
+  (aio-await (oldt-service-start-process "docker-compose up" "*oldt-service-docker-output*"
                                          "docker-compose" "up" "--force-recreate" "--build" "-d")))
 
-(aio-defun oldt-docker-compose-restart ()
-  (aio-await (oldt-docker-compose-down))
-  (aio-await (oldt-docker-compose-up)))
+(aio-defun oldt-service-docker-compose-restart ()
+  (aio-await (oldt-service-docker-compose-down))
+  (aio-await (oldt-service-docker-compose-up)))
 #+end_src
 *** browse-repo
 #+begin_src emacs-lisp
@@ -398,7 +402,6 @@ used to limit the exported source code blocks by language."
 			 (she-bang (let ((sheb (funcall get-spec :shebang)))
                                      (when (> (length sheb) 0) sheb)))
 			 (tangle-mode (funcall get-spec :tangle-mode))
-                         (tangle-dir (get-tangle-dir-at-point))
 			 (base-name (cond
 				     ((string= "yes" tangle)
 				      (file-name-sans-extension
@@ -495,7 +498,7 @@ used to limit the exported source code blocks by language."
 *** collect-relatives
 #+begin_src emacs-lisp
 (defun oldt-collect-relative-blocks ()
-  (let* ((counter 0) last-heading-pos blocks
+  (let* ((counter 0) blocks
          (info (org-babel-get-src-block-info 'light))
          (babel-params (nth 2 info))
          (src-tfile (consider-tangle-dir (alist-get :tangle babel-params)))
@@ -629,10 +632,10 @@ used to limit the exported source code blocks by language."
     (org-babel-tangle)
     (mapc 'load-file project-files)
     (mapc 'byte-compile-file project-files)
-    (mapc 'oldt-ensure-local-var
-          '(org-literate-test-selector org-literate-test-buffer))
 
-    (let* ((ert-stats (ert-run-tests-interactively org-literate-test-selector org-literate-test-buffer))
+    (let* ((org-literate-test-selector (oldt-ensure-local-var 'org-literate-test-selector))
+           (org-literate-test-buffer (oldt-ensure-local-var 'org-literate-test-buffer))
+           (ert-stats (ert-run-tests-interactively org-literate-test-selector org-literate-test-buffer))
            (expected (ert-stats-completed-expected ert-stats))
            (unexpected (ert-stats-completed-unexpected ert-stats))
            (skipped (ert-stats-skipped ert-stats))
