@@ -254,8 +254,8 @@
     (org-open-link-from-string logs-url)))
 
 (defun oldt-service-browse-ci ()
-  (let ((ci-url (oldt-service-get-property "CI")))
-    (browse-url ci-url)))
+  (loop for url in (split-string (oldt-service-get-property "CI"))
+        do (org-open-link-from-string url)))
 
 (defun oldt-tt (&rest mappings)
   (loop for mapping in mappings
