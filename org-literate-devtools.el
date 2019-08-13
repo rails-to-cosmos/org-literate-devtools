@@ -83,7 +83,8 @@
 
 (defun oldt-project-insert-commit-message ()
   (let ((msg (read-string "Commit message: "
-                          (concat (oldt-project-get-property "TICKET") ": "))))
+                          (concat (oldt-project-get-property "TICKET") ": "
+                                  (oldt-task-get-property "ITEM")))))
     (insert msg)
     (unless (s-ends-with-p "." msg)
       (insert "."))))
@@ -135,7 +136,10 @@
 
 (defun oldt-search-project ()
   (cond ((and (org-at-heading-p) (oldt-at-project-p)) t)
-        ((org-clocking-p) (org-clock-goto))
+        ((org-clocking-p) (progn
+                            (org-clock-goto)
+                            (org-beginning-of-line)
+                            t))
         (t nil))
   (oldt-search-ancestor 'oldt-at-project-p))
 
@@ -177,6 +181,37 @@
             (when-let ((ticket-link (alist-get "ticket" org-link-abbrev-alist-local nil nil #'string=)))
               (browse-url (format ticket-link ticket))))))))
 
+(defun oldt-search-task ()
+  (when (cond ((org-at-heading-p) t)
+              ((org-clocking-p) (progn
+                                  (org-clock-goto)
+                                  (org-beginning-of-line)
+                                  t))
+              (t nil))
+    (point-marker)))
+
+(defun oldt-goto-task ()
+  (interactive)
+  (let ((mark (oldt-search-task)))
+    (org-goto-marker-or-bmk mark)
+    mark))
+
+(defun oldt-task-set-property (property value)
+  (save-window-excursion
+    (save-excursion
+      (oldt-goto-task)
+      (cond ((string= property "ITEM")
+             (let ((beg (save-excursion
+                          (org-beginning-of-line)
+                          (point)))
+                   (end (save-excursion
+                          (org-end-of-line)
+                          (point))))
+               (kill-region beg end)
+               (org-beginning-of-line)
+               (insert value)))
+            (t (org-set-property property value))))))
+
 (defun oldt-trigger-function (change-plist)
   (let (;; (state-from (substring-no-properties (or (plist-get change-plist :from) "")))
         (state-to (substring-no-properties (or (plist-get change-plist :to) ""))))
@@ -185,9 +220,9 @@
 (add-hook 'org-trigger-hook 'oldt-trigger-function)
 
 (defun oldt-task-get-property (property)
-  (when (org-clocking-p)
-    (save-window-excursion
-      (org-clock-goto)
+  (save-window-excursion
+    (save-excursion
+      (oldt-goto-task)
       (if (string= property "STATE")
           (substring-no-properties (org-get-todo-state))
         (org-entry-get (mark) property t)))))
@@ -551,9 +586,6 @@ used to limit the exported source code blocks by language."
           (when (y-or-n-p (format "Switch to task branch %s (current %s)?" branch current-branch))
             (magit-branch-or-checkout branch source)
             (magit-branch-checkout branch)))))))
-
-(defun oldt-insert-commit-msg ()
-  (insert (oldt-project-get-property "BRANCH") ": " (oldt-task-get-property "ITEM")))
 
 (defun oldt-task-trigger-todo-hook ()
   (interactive)
