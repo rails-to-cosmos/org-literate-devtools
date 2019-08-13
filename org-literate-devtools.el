@@ -56,7 +56,7 @@
   (save-excursion
     (org-back-to-heading)
     (org-beginning-of-line)
-    (plist-get (org-element--get-node-properties) :CATEGORY)))
+    (plist-get (org-element--get-node-properties) :PROJECT)))
 
 (defun oldt-project-menu ()
   (interactive)
@@ -73,22 +73,16 @@
                  "service-docker-compose-restart"
 
                  "project-browse-ticket"
-                 "project-insert-commit-message"
                  "project-insert-ticket"
                  "project-insert-branch"
 
+                 "task-insert-commit-message"
                  "task-browse-pull-request")))
     (if-let (project-name (oldt-project-get-property "ITEM"))
-        (funcall (intern (concat "oldt-" (org-completing-read (concat project-name ": ") items))))
+        (progn
+          (funcall (intern (concat "oldt-" (org-completing-read (concat project-name ": ") items))))
+          (highlight-regexp project-name))
       (message "Unable to find project."))))
-
-(defun oldt-project-insert-commit-message ()
-  (let ((msg (read-string "Commit message: "
-                          (concat (oldt-project-get-property "TICKET") ": "
-                                  (oldt-task-get-property "ITEM")))))
-    (insert msg)
-    (unless (s-ends-with-p "." msg)
-      (insert "."))))
 
 (defun oldt-project-insert-ticket ()
   (interactive)
@@ -178,6 +172,14 @@
             (when-let ((ticket-link (alist-get "ticket" org-link-abbrev-alist-local nil nil #'string=)))
               (browse-url (format ticket-link ticket))))))))
 
+(defun oldt-task-insert-commit-message ()
+  (let ((msg (read-string "Commit message: "
+                          (concat (oldt-project-get-property "TICKET") ": "
+                                  (oldt-task-get-property "ITEM")))))
+    (insert msg)
+    (unless (s-ends-with-p "." msg)
+      (insert "."))))
+
 (defun oldt-task-browse-pull-request ()
   (let ((pr-url (oldt-task-get-property "PULL_REQUEST")))
     (browse-url pr-url)))
@@ -223,10 +225,10 @@
 (defun oldt-task-get-property (property)
   (save-window-excursion
     (save-excursion
-      (oldt-goto-task)
-      (if (string= property "STATE")
-          (substring-no-properties (org-get-todo-state))
-        (org-entry-get (mark) property t)))))
+      (let ((marker (oldt-goto-task)))
+        (if (string= property "STATE")
+            (substring-no-properties (org-get-todo-state))
+          (org-entry-get marker property t))))))
 
 (defun oldt-service-eshell ()
   (spawn-custom-shell (format "*%s-eshell*" (oldt-service-get-property "ITEM"))
