@@ -72,11 +72,12 @@
                  "service-docker-compose-up"
                  "service-docker-compose-restart"
 
-                 "project-browse-pull-request"
                  "project-browse-ticket"
                  "project-insert-commit-message"
                  "project-insert-ticket"
-                 "project-insert-branch")))
+                 "project-insert-branch"
+
+                 "task-browse-pull-request")))
     (if-let (project-name (oldt-project-get-property "ITEM"))
         (funcall (intern (concat "oldt-" (org-completing-read (concat project-name ": ") items))))
       (message "Unable to find project."))))
@@ -96,10 +97,6 @@
 (defun oldt-project-insert-branch ()
   (interactive)
   (insert (oldt-project-get-property "BRANCH")))
-
-(defun oldt-project-browse-pull-request ()
-  (let ((pr-url (oldt-project-get-property "PULL_REQUEST")))
-    (browse-url pr-url)))
 
 (defun oldt-tangle-buffer ()
   (org-element-map (org-element-parse-buffer 'element) 'src-block
@@ -180,6 +177,10 @@
             (oldt-goto-project)
             (when-let ((ticket-link (alist-get "ticket" org-link-abbrev-alist-local nil nil #'string=)))
               (browse-url (format ticket-link ticket))))))))
+
+(defun oldt-task-browse-pull-request ()
+  (let ((pr-url (oldt-task-get-property "PULL_REQUEST")))
+    (browse-url pr-url)))
 
 (defun oldt-search-task ()
   (when (cond ((org-at-heading-p) t)
