@@ -65,12 +65,13 @@
                  "service-browse-ci"
                  "service-browse-logs"
 
-                 "service-docker-browse-container"
-                 "service-docker-container-logs"
                  "service-docker-compose-config"
                  "service-docker-compose-down"
-                 "service-docker-compose-up"
                  "service-docker-compose-restart"
+                 "service-docker-compose-up"
+                 "service-docker-container-dired"
+                 "service-docker-container-eshell"
+                 "service-docker-container-logs"
 
                  "project-browse-ticket"
                  "project-insert-ticket"
@@ -80,8 +81,10 @@
                  "task-browse-pull-request")))
     (if-let (project-name (oldt-project-get-property "ITEM"))
         (progn
-          (funcall (intern (concat "oldt-" (org-completing-read (concat project-name ": ") items))))
-          (highlight-regexp project-name))
+          (highlight-regexp project-name)
+          (unwind-protect
+              (funcall (intern (concat "oldt-" (org-completing-read (concat project-name ": ") items))))
+            (unhighlight-regexp project-name)))
       (message "Unable to find project."))))
 
 (defun oldt-project-insert-ticket ()
@@ -172,6 +175,12 @@
             (when-let ((ticket-link (alist-get "ticket" org-link-abbrev-alist-local nil nil #'string=)))
               (browse-url (format ticket-link ticket))))))))
 
+(defun oldt-at-task-p ()
+  (save-excursion
+    (org-back-to-heading)
+    (org-beginning-of-line)
+    (not (oldt-at-project-p))))
+
 (defun oldt-task-insert-commit-message ()
   (let ((msg (read-string "Commit message: "
                           (concat (oldt-project-get-property "TICKET") ": "
@@ -185,13 +194,13 @@
     (browse-url pr-url)))
 
 (defun oldt-search-task ()
-  (when (cond ((org-at-heading-p) t)
-              ((org-clocking-p) (progn
-                                  (org-clock-goto)
-                                  (org-beginning-of-line)
-                                  t))
-              (t nil))
-    (point-marker)))
+  (if (cond ((org-at-heading-p) (oldt-at-task-p))
+            ((org-clocking-p) (progn
+                                (org-clock-goto)
+                                (oldt-at-task-p)))
+            (t nil))
+      (point-marker)
+    (error "Task not found.")))
 
 (defun oldt-goto-task ()
   (interactive)
@@ -219,7 +228,8 @@
   (let (;; (state-from (substring-no-properties (or (plist-get change-plist :from) "")))
         (state-to (substring-no-properties (or (plist-get change-plist :to) ""))))
     (when-let (magic-property (oldt-project-get-property (format "TASK_%s" state-to)))
-      (eval (read magic-property)))))
+      (when (oldt-at-task-p)
+        (eval (read magic-property))))))
 (add-hook 'org-trigger-hook 'oldt-trigger-function)
 
 (defun oldt-task-get-property (property)
@@ -246,11 +256,18 @@
 
 (require 'aio)
 
-(defun oldt-service-docker-browse-container ()
+(defun oldt-service-docker-container-dired ()
   (interactive)
   (oldt-goto-project)
   (let ((container (oldt-service-get-property "CONTAINER")))
     (org-open-link-from-string (format "[[docker:%s]]" container))))
+
+(defun oldt-service-docker-container-eshell ()
+  (interactive)
+  (let ((container (oldt-service-get-property "CONTAINER"))
+        (service (oldt-service-get-property "ITEM")))
+    (spawn-custom-shell (format "*%s-docker-container-eshell*" service)
+                        (format "/docker:%s:/opt" container))))
 
 (defun oldt-service-docker-container-logs ()
   (oldt-goto-project)
@@ -628,7 +645,7 @@ used to limit the exported source code blocks by language."
                 (message "Going to last stored headline")
                 (org-capture-goto-last-stored)
                 (message "Setting ITEM property extracted from Jira task")
-                (oldt-project-set-property "ITEM" .fields.summary))))))))))
+                (oldt-project-set-property "ITEM" (concat .fields.summary " [0%]")))))))))))
 
 (add-hook 'org-capture-before-finalize-hook 'oldt-jira-capture-ticket-title)
 
