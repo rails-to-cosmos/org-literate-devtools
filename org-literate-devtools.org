@@ -55,7 +55,6 @@
   (save-excursion
     (unless (org-at-heading-p)
       (org-back-to-heading))
-
     (alist-get property (org-entry-properties) nil nil #'string=)))
 #+end_src
 *** search-ancestor
@@ -333,7 +332,7 @@
 #+end_src
 *** get-service-property
 #+begin_src emacs-lisp
-(defun oldt-service-get-property (prop)
+(defun oldt-service-get-property (property)
   (let ((service (split-string (oldt-project-get-property "SERVICES"))))
     (setq service (if (> (length service) 1)
                       (org-completing-read "Service: " service)
@@ -341,7 +340,7 @@
     (save-window-excursion
       (save-excursion
         (org-id-goto service)
-        (alist-get prop (org-entry-properties) nil nil #'string=)))))
+        (oldt-get-node-property property)))))
 #+end_src
 *** docker
 #+begin_src emacs-lisp
@@ -743,6 +742,30 @@ used to limit the exported source code blocks by language."
     (oldt-trigger-function (list :from "TODO" :to state))))
 #+end_src
 * Experiments
+** note-reader
+#+begin_src emacs-lisp
+(require 'generator)
+
+(iter-defun oldt-note-reader (&optional pom)
+  (org-goto-marker-or-bmk (or pom (progn
+                                    (org-back-to-heading)
+                                    (point-marker))))
+  (while (condition-case nil
+             (search-forward "Note taken on")
+           (error nil))
+    (iter-yield (point-marker)))
+  (message "No more notes found."))
+
+(setq oldt-note-reader--current nil)
+
+(defun oldt-read-next-node ()
+  (interactive)
+  (unless oldt-note-reader--current
+    (setq oldt-note-reader--current (oldt-note-reader)))
+  (condition-case mark
+      (iter-next oldt-note-reader--current)
+    (iter-end-of-sequence (setq oldt-note-reader--current nil))))
+#+end_src
 ** jira-integration
 #+begin_src emacs-lisp
 (require 'request)

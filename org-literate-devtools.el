@@ -39,7 +39,6 @@
   (save-excursion
     (unless (org-at-heading-p)
       (org-back-to-heading))
-
     (alist-get property (org-entry-properties) nil nil #'string=)))
 
 (defun oldt-search-ancestor (predicate)
@@ -244,7 +243,7 @@
   (spawn-custom-shell (format "*%s-eshell*" (oldt-service-get-property "ITEM"))
                       (oldt-service-get-property "PATH")))
 
-(defun oldt-service-get-property (prop)
+(defun oldt-service-get-property (property)
   (let ((service (split-string (oldt-project-get-property "SERVICES"))))
     (setq service (if (> (length service) 1)
                       (org-completing-read "Service: " service)
@@ -252,7 +251,7 @@
     (save-window-excursion
       (save-excursion
         (org-id-goto service)
-        (alist-get prop (org-entry-properties) nil nil #'string=)))))
+        (oldt-get-node-property property)))))
 
 (require 'aio)
 
@@ -618,6 +617,28 @@ used to limit the exported source code blocks by language."
   (let ((state (oldt-task-get-property "STATE"))
         (default-directory (file-name-directory (buffer-file-name (org-clocking-buffer)))))
     (oldt-trigger-function (list :from "TODO" :to state))))
+
+(require 'generator)
+
+(iter-defun oldt-note-reader (&optional pom)
+  (org-goto-marker-or-bmk (or pom (progn
+                                    (org-back-to-heading)
+                                    (point-marker))))
+  (while (condition-case nil
+             (search-forward "Note taken on")
+           (error nil))
+    (iter-yield (point-marker)))
+  (message "No more notes found."))
+
+(setq oldt-note-reader--current nil)
+
+(defun oldt-read-next-node ()
+  (interactive)
+  (unless oldt-note-reader--current
+    (setq oldt-note-reader--current (oldt-note-reader)))
+  (condition-case mark
+      (iter-next oldt-note-reader--current)
+    (iter-end-of-sequence (setq oldt-note-reader--current nil))))
 
 (require 'request)
 
