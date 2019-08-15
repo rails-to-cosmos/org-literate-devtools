@@ -744,27 +744,30 @@ used to limit the exported source code blocks by language."
 * Experiments
 ** note-reader
 #+begin_src emacs-lisp
-(require 'generator)
+(setq oldt-note-reader--current-marker nil)
 
-(iter-defun oldt-note-reader (&optional pom)
-  (org-goto-marker-or-bmk (or pom (progn
-                                    (org-back-to-heading)
-                                    (point-marker))))
-  (while (condition-case nil
-             (search-forward "Note taken on")
-           (error nil))
-    (iter-yield (point-marker)))
-  (message "No more notes found."))
+(defun oldt-read-next-note (pom)
+  (save-excursion
+    (let ((eol (save-excursion
+                 (org-goto-marker-or-bmk pom)
+                 (re-search-forward org-clock-drawer-end-re)
+                 (point-marker))))
+    (when (< pom eol)
+      (condition-case nil
+          (save-excursion
+            (org-goto-marker-or-bmk pom)
+            (search-forward "Note taken on")
+            (point-marker))
+        (error nil))))))
 
-(setq oldt-note-reader--current nil)
-
-(defun oldt-read-next-node ()
+(defun oldt-logbook-reader ()
   (interactive)
-  (unless oldt-note-reader--current
-    (setq oldt-note-reader--current (oldt-note-reader)))
-  (condition-case mark
-      (iter-next oldt-note-reader--current)
-    (iter-end-of-sequence (setq oldt-note-reader--current nil))))
+  (setq oldt-note-reader--current-marker
+        (oldt-read-next-note (or oldt-note-reader--current-marker
+                                 (save-excursion
+                                   (org-back-to-heading)
+                                   (re-search-forward ":LOGBOOK:")
+                                   (point-marker))))))
 #+end_src
 ** jira-integration
 #+begin_src emacs-lisp
