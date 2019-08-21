@@ -61,7 +61,7 @@
   (interactive)
   (let ((items `("service-eshell"
                  "service-browse-repo"
-                 "service-browse-ci"
+                 "service-browse-deploy"
                  "service-browse-logs"
 
                  "service-docker-compose-config"
@@ -261,6 +261,23 @@
   (let ((container (oldt-service-get-property "CONTAINER")))
     (org-open-link-from-string (format "[[docker:%s]]" container))))
 
+(defun oldt-service-docker-container-logs ()
+  (interactive)
+  (let* ((container (oldt-service-get-property "CONTAINER"))
+         (tempfile (make-temp-file container))
+         (cmd (format "docker logs %s -f" container))
+         (bufname (format "*docker-%s-logs*" container)))
+    (get-buffer-create bufname)
+    ;; (find-file tempfile)
+    (async-shell-command cmd bufname)
+    ;; (let ((message-log-max nil))
+    ;;   (shell-command cmd bufname))
+    (switch-to-buffer-other-window bufname)
+    (end-of-buffer)
+    ;; (special-mode)
+    ;; (auto-revert-mode)
+    ))
+
 (defun oldt-service-docker-container-eshell ()
   (interactive)
   (let ((container (oldt-service-get-property "CONTAINER"))
@@ -268,10 +285,11 @@
     (spawn-custom-shell (format "*%s-docker-container-eshell*" service)
                         (format "/docker:%s:/opt" container))))
 
-(defun oldt-service-docker-container-logs ()
-  (oldt-goto-project)
-  (let ((container (oldt-service-get-property "CONTAINER")))
-    (org-open-link-from-string (format "[[docker-logs:%s]]" container))))
+;; (defun oldt-service-docker-container-logs ()
+;;   (interactive)
+;;   (oldt-goto-project)
+;;   (let ((container (oldt-service-get-property "CONTAINER")))
+;;     (org-open-link-from-string (format "[[docker-logs:%s]]" container))))
 
 (defun oldt-service-docker-compose-config ()
   (let ((path (oldt-service-get-property "PATH")))
@@ -292,7 +310,8 @@
 
 (aio-defun oldt-service-docker-compose-up ()
   (aio-await (oldt-service-start-process "docker-compose up" "*oldt-service-docker-output*"
-                                         "docker-compose" "up" "--force-recreate" "--build" "-d")))
+                                         "docker-compose" "up" "--force-recreate" "--build" "-d"))
+  (oldt-service-docker-container-logs))
 
 (aio-defun oldt-service-docker-compose-restart ()
   (aio-await (oldt-service-docker-compose-down))
@@ -308,7 +327,7 @@
   (let ((logs-url (oldt-service-get-property "LOGS")))
     (org-open-link-from-string logs-url)))
 
-(defun oldt-service-browse-ci ()
+(defun oldt-service-browse-deploy ()
   (loop for url in (split-string (oldt-service-get-property "CI"))
         do (org-open-link-from-string url)))
 
@@ -658,19 +677,29 @@ used to limit the exported source code blocks by language."
            :parser 'json-read
            :success callback))
 
-(defun oldt-jira-capture-ticket-title ()
+;; (defun oldt-jira-capture-ticket-title ()
+;;   (when-let (ticket (oldt-project-get-property "TICKET"))
+;;     (oldt-jira-get-ticket-summary ticket
+;;                                   (cl-function #'oldt-jira--capture-ticket-title))))
+
+(defun oldt-jira-capture-ticket-title (&key data &allow-other-keys)
   (when-let (project (oldt-at-project-p))
     (when-let (ticket (oldt-project-get-property "TICKET"))
       (oldt-jira-get-ticket-summary ticket
-       (cl-function
-        (lambda (&key data &allow-other-keys)
-          (save-window-excursion
-            (save-excursion
-              (let-alist data
-                (message "Going to last stored headline")
-                (org-capture-goto-last-stored)
-                (message "Setting ITEM property extracted from Jira task")
-                (oldt-project-set-property "ITEM" (concat .fields.summary " [0%]")))))))))))
+                                    (cl-function
+                                     (lambda (&key data &allow-other-keys)
+                                       (save-window-excursion
+                                         (save-excursion
+                                           (let-alist data
+                                             (message "Going to last stored headline")
+                                             (org-capture-goto-last-stored)
+                                             (message "Setting ITEM property extracted from Jira task")
+                                             (oldt-project-set-property "ITEM" (concat .fields.summary " [0%]")))))))))))
+
+
+;; (defun oldt-jira--get-ticket-status (&key data &allow-other-keys)
+;;   (let-alist data
+;;     (prin1 .fields.status.name)))
 
 (add-hook 'org-capture-before-finalize-hook 'oldt-jira-capture-ticket-title)
 
