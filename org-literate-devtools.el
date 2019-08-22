@@ -174,6 +174,11 @@
             (when-let ((ticket-link (alist-get "ticket" org-link-abbrev-alist-local nil nil #'string=)))
               (browse-url (format ticket-link ticket))))))))
 
+(defun oldt-task-browse (property)
+  (org-open-link-from-string
+   (org-completing-read (format "Browse %s" property)
+                        (split-string (oldt-task-get-property property)))))
+
 (defun oldt-at-task-p ()
   (save-excursion
     (org-back-to-heading)
@@ -189,8 +194,7 @@
       (insert "."))))
 
 (defun oldt-task-browse-pull-request ()
-  (let ((pr-url (oldt-task-get-property "PULL_REQUEST")))
-    (browse-url pr-url)))
+  (oldt-task-browse "PULL_REQUEST"))
 
 (defun oldt-set-pull-request-if-not-specified ()
   (when (oldt-at-task-p)
@@ -625,10 +629,16 @@ used to limit the exported source code blocks by language."
       (let* ((default-directory (oldt-service-get-property "PATH"))
              (branch (oldt-project-get-property "BRANCH"))
              (current-branch (magit-get-current-branch))
-             (source (oldt-project-get-property "SOURCE_BRANCH")))
+             (source (oldt-project-get-property "SOURCE_BRANCH"))
+             (staged (magit-staged-files))
+             (unstaged (magit-unstaged-files))
+             (untracked (magit-untracked-files)))
         (if (string= branch current-branch)
             (message "Already on branch %s" branch)
-          (when (y-or-n-p (format "Switch to task branch %s (current %s)?" branch current-branch))
+          (when (y-or-n-p (format "Switch to task branch %s (current %s%s%s%s)?" branch current-branch
+                                  (if staged (format ", staged %d files" (length staged)) "")
+                                  (if unstaged (format ", unstaged %d files" (length unstaged)) "")
+                                  (if untracked (format ", untracked %d files" (length untracked)) "")))
             (magit-branch-or-checkout branch source)
             (magit-branch-checkout branch)))))))
 
@@ -696,7 +706,7 @@ used to limit the exported source code blocks by language."
                                            (message "Setting ITEM property extracted from Jira task")
                                            (oldt-project-set-property "ITEM" (concat .fields.summary " [0%]"))))))))))
 
-(defun oldt-jira-update-task-status ()
+(defun oldt-jira-update-project-status ()
   (interactive)
   (when-let (ticket (oldt-project-get-property "TICKET"))
     (oldt-jira-get-ticket-summary ticket
