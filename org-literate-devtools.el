@@ -677,29 +677,30 @@ used to limit the exported source code blocks by language."
            :parser 'json-read
            :success callback))
 
-;; (defun oldt-jira-capture-ticket-title ()
-;;   (when-let (ticket (oldt-project-get-property "TICKET"))
-;;     (oldt-jira-get-ticket-summary ticket
-;;                                   (cl-function #'oldt-jira--capture-ticket-title))))
+(defun oldt-jira-capture-ticket-title ()
+  (when-let (ticket (oldt-project-get-property "TICKET"))
+    (oldt-jira-get-ticket-summary ticket
+                                  (cl-function
+                                   (lambda (&key data &allow-other-keys)
+                                     (save-window-excursion
+                                       (save-excursion
+                                         (let-alist data
+                                           (message "Going to last stored headline")
+                                           (org-capture-goto-last-stored)
+                                           (message "Setting ITEM property extracted from Jira task")
+                                           (oldt-project-set-property "ITEM" (concat .fields.summary " [0%]"))))))))))
 
-(defun oldt-jira-capture-ticket-title (&key data &allow-other-keys)
-  (when-let (project (oldt-at-project-p))
-    (when-let (ticket (oldt-project-get-property "TICKET"))
-      (oldt-jira-get-ticket-summary ticket
-                                    (cl-function
-                                     (lambda (&key data &allow-other-keys)
-                                       (save-window-excursion
-                                         (save-excursion
-                                           (let-alist data
-                                             (message "Going to last stored headline")
-                                             (org-capture-goto-last-stored)
-                                             (message "Setting ITEM property extracted from Jira task")
-                                             (oldt-project-set-property "ITEM" (concat .fields.summary " [0%]")))))))))))
-
-
-;; (defun oldt-jira--get-ticket-status (&key data &allow-other-keys)
-;;   (let-alist data
-;;     (prin1 .fields.status.name)))
+(defun oldt-jira-update-task-status ()
+  (interactive)
+  (when-let (ticket (oldt-project-get-property "TICKET"))
+    (oldt-jira-get-ticket-summary ticket
+                                  (cl-function
+                                   (lambda (&key data &allow-other-keys)
+                                     (save-window-excursion
+                                       (save-excursion
+                                         (let-alist data
+                                           (message "Setting JIRA_TASK_STATUS property extracted from Jira task")
+                                           (oldt-project-set-property "JIRA_TASK_STATUS" .fields.status.name)))))))))
 
 (add-hook 'org-capture-before-finalize-hook 'oldt-jira-capture-ticket-title)
 
