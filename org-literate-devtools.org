@@ -266,6 +266,14 @@
   (let ((pr-url (oldt-task-get-property "PULL_REQUEST")))
     (browse-url pr-url)))
 #+end_src
+*** set-pull-request-prop
+#+begin_src emacs-lisp
+(defun oldt-set-pull-request-if-not-specified ()
+  (when (oldt-at-task-p)
+    (oldt-task-set-property "PULL_REQUEST"
+                            (or (oldt-task-get-property "PULL_REQUEST")
+                                (org-read-property-value "PULL_REQUEST")))))
+#+end_src
 *** search-task
 #+begin_src emacs-lisp
 (defun oldt-search-task ()

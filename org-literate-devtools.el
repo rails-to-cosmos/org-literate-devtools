@@ -192,6 +192,12 @@
   (let ((pr-url (oldt-task-get-property "PULL_REQUEST")))
     (browse-url pr-url)))
 
+(defun oldt-set-pull-request-if-not-specified ()
+  (when (oldt-at-task-p)
+    (oldt-task-set-property "PULL_REQUEST"
+                            (or (oldt-task-get-property "PULL_REQUEST")
+                                (org-read-property-value "PULL_REQUEST")))))
+
 (defun oldt-search-task ()
   (if (cond ((org-at-heading-p) (oldt-at-task-p))
             ((org-clocking-p) (progn
