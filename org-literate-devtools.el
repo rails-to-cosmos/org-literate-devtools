@@ -274,16 +274,12 @@
 (defun oldt-service-docker-container-logs ()
   (interactive)
   (let* ((container (oldt-service-get-property "CONTAINER"))
-         (tempfile (make-temp-file container))
          (cmd (format "docker logs %s -f" container))
          (bufname (format "*docker-%s-logs*" container)))
     (get-buffer-create bufname)
-    ;; (find-file tempfile)
     (async-shell-command cmd bufname)
-    ;; (let ((message-log-max nil))
-    ;;   (shell-command cmd bufname))
     (switch-to-buffer-other-window bufname)
-    (end-of-buffer)
+    (goto-char (point-max))
     ;; (special-mode)
     ;; (auto-revert-mode)
     ))
@@ -348,7 +344,7 @@
         collect (car (last mapping)) into result
         finally (return (if result (car result) "no"))))
 
-(defun oldt-tangle-relatives (&optional arg target-file lang)
+(defun oldt-tangle-relatives (&optional arg target-file &rest _)
   "Write code blocks to source-specific files.
 Extract the bodies of all source code blocks from the current
 file into their own source-specific files.
@@ -754,7 +750,7 @@ used to limit the exported source code blocks by language."
     (save-restriction
       (org-save-outline-visibility nil
         (narrow-to-region (org-entry-beginning-position) (org-entry-end-position))
-        (loop while (condition-case-unless-debug user-error (org-babel-next-src-block) (user-error nil))
+        (loop while (condition-case-unless-debug nil (org-babel-next-src-block) (user-error nil))
               collect (org-babel-execute-src-block nil nil '((:results . "silent"))) into report
               finally (return (-all-p (lambda (result) (s-contains-p "success" (downcase result))) report)))))))
 
