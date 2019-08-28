@@ -163,6 +163,8 @@
                (kill-region beg end)
                (org-beginning-of-line)
                (insert value)))
+            ((string= property "TODO_STATE")
+             (org-todo value))
             (t (org-set-property property value))))))
 
 (defun oldt-project-browse-ticket ()
@@ -718,7 +720,8 @@ used to limit the exported source code blocks by language."
                                        (save-excursion
                                          (let-alist data
                                            (message "Setting JIRA_TASK_STATUS property extracted from Jira task")
-                                           (oldt-project-set-property "JIRA_TASK_STATUS" .fields.status.name)))))))))
+                                           (oldt-project-set-property "JIRA_TASK_STATUS" .fields.status.name)
+                                           (upcase (s-replace " " "_" (oldt-project-set-property "TODO_STATE" .fields.status.name)))))))))))
 
 (add-hook 'org-capture-before-finalize-hook 'oldt-jira-capture-ticket-title)
 
