@@ -721,7 +721,9 @@ used to limit the exported source code blocks by language."
                                          (let-alist data
                                            (message "Setting JIRA_TASK_STATUS property extracted from Jira task")
                                            (oldt-project-set-property "JIRA_TASK_STATUS" .fields.status.name)
-                                           (upcase (s-replace " " "_" (oldt-project-set-property "TODO_STATE" .fields.status.name)))))))))))
+                                           (oldt-project-set-property "TODO_STATE"
+                                                                      (upcase (s-replace " " "_" .fields.status.name)))
+                                           ))))))))
 
 (add-hook 'org-capture-before-finalize-hook 'oldt-jira-capture-ticket-title)
 
