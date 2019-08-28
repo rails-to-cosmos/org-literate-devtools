@@ -245,9 +245,13 @@
 *** browse-something
 #+begin_src emacs-lisp
 (defun oldt-task-browse (property)
-  (org-open-link-from-string
-   (org-completing-read (format "Browse %s" property)
-                        (split-string (oldt-task-get-property property)))))
+  (if-let (val (-> property
+                   oldt-task-get-property
+                   split-string))
+      (if (> (length val) 1)
+          (org-open-link-from-string
+           (org-completing-read (format "Browse %s: " property) val))
+        (org-open-link-from-string (car val)))))
 #+end_src
 *** at-task?
 #+begin_src emacs-lisp

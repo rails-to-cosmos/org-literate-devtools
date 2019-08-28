@@ -175,9 +175,13 @@
               (browse-url (format ticket-link ticket))))))))
 
 (defun oldt-task-browse (property)
-  (org-open-link-from-string
-   (org-completing-read (format "Browse %s" property)
-                        (split-string (oldt-task-get-property property)))))
+  (if-let (val (-> property
+                   oldt-task-get-property
+                   split-string))
+      (if (> (length val) 1)
+          (org-open-link-from-string
+           (org-completing-read (format "Browse %s: " property) val))
+        (org-open-link-from-string (car val)))))
 
 (defun oldt-at-task-p ()
   (save-excursion
