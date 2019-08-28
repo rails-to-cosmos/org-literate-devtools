@@ -278,7 +278,9 @@
   (when (oldt-at-task-p)
     (oldt-task-set-property "PULL_REQUEST"
                             (or (oldt-task-get-property "PULL_REQUEST")
-                                (org-read-property-value "PULL_REQUEST")))))
+                                (org-read-property-value "PULL_REQUEST")))
+    (let ((org-clock-out-switch-to-state "CODE_REVIEW"))
+      (org-clock-out))))
 #+end_src
 *** search-task
 #+begin_src emacs-lisp

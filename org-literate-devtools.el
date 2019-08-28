@@ -200,7 +200,9 @@
   (when (oldt-at-task-p)
     (oldt-task-set-property "PULL_REQUEST"
                             (or (oldt-task-get-property "PULL_REQUEST")
-                                (org-read-property-value "PULL_REQUEST")))))
+                                (org-read-property-value "PULL_REQUEST")))
+    (let ((org-clock-out-switch-to-state "CODE_REVIEW"))
+      (org-clock-out))))
 
 (defun oldt-search-task ()
   (if (cond ((org-at-heading-p) (oldt-at-task-p))
