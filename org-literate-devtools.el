@@ -32,6 +32,11 @@
 
 ;;; Code:
 
+(require 'aio)
+(require 'ert)
+(require 'org)
+(require 'org-capture)
+
 (defun oldt-headline-contains-tags-p (&rest tags)
   (equal (seq-intersection tags (org-get-tags)) tags))
 
@@ -79,11 +84,11 @@
                  "task-insert-commit-message"
                  "task-browse-pull-request")))
     (if-let (project-name (oldt-project-get-property "ITEM"))
-        (progn
-          (highlight-regexp project-name)
-          (unwind-protect
-              (funcall (intern (concat "oldt-" (org-completing-read (concat project-name ": ") items))))
-            (unhighlight-regexp project-name)))
+        (-some->> items
+                      (org-completing-read (concat project-name ": "))
+                      (concat "oldt-")
+                      (intern)
+                      (funcall))
       (message "Unable to find project."))))
 
 (defun oldt-project-insert-ticket ()
@@ -271,8 +276,6 @@
         (org-id-goto service)
         (oldt-get-node-property property)))))
 
-(require 'aio)
-
 (defun oldt-service-docker-container-dired ()
   (interactive)
   (oldt-goto-project)
@@ -320,7 +323,8 @@
 
 (aio-defun oldt-service-docker-compose-down ()
   (aio-await (oldt-service-start-process "docker-compose down" "*oldt-service-docker-output*" "docker-compose" "down"))
-  (aio-await (oldt-service-start-process "docker image prune" "*oldt-service-docker-output*" "docker" "image" "prune" "-f")))
+  ;; (aio-await (oldt-service-start-process "docker image prune" "*oldt-service-docker-output*" "docker" "image" "prune" "-f"))
+  )
 
 (aio-defun oldt-service-docker-compose-up ()
   (aio-await (oldt-service-start-process "docker-compose up" "*oldt-service-docker-output*"
