@@ -68,6 +68,7 @@
                  "service-browse-repo"
                  "service-browse-deploy"
                  "service-browse-logs"
+                 "service-browse-url"
 
                  "service-docker-compose-config"
                  "service-docker-compose-down"
@@ -205,15 +206,16 @@
       (insert "."))))
 
 (defun oldt-task-browse-pull-request ()
-  (oldt-task-browse "PULL_REQUEST"))
+  (oldt-browse "PULL_REQUEST" #'oldt-task-get-property))
 
 (defun oldt-set-pull-request-if-not-specified ()
-  (when (oldt-at-task-p)
-    (oldt-task-set-property "PULL_REQUEST"
-                            (or (oldt-task-get-property "PULL_REQUEST")
-                                (org-read-property-value "PULL_REQUEST")))
-    (let ((org-clock-out-switch-to-state "CODE_REVIEW"))
-      (org-clock-out))))
+  (when (and (oldt-at-task-p)
+             (not (oldt-task-get-property "PULL_REQUEST")))
+    (-some->> (org-read-property-value "PULL_REQUEST")
+              (oldt-task-set-property "PULL_REQUEST"))
+    (when (org-clocking-p)
+      (let ((org-clock-out-switch-to-state "CODE_REVIEW"))
+        (org-clock-out)))))
 
 (defun oldt-search-task ()
   (if (cond ((org-at-heading-p) (oldt-at-task-p))
@@ -336,8 +338,8 @@
   (aio-await (oldt-service-docker-compose-up)))
 
 (defun oldt-service-browse-repo ()
-  (let ((repo-url (oldt-service-get-property "REPO")))
-    (browse-url repo-url)))
+  (when-let ((repo-url (oldt-service-get-property "REPO")))
+    (org-open-link-from-string repo-url)))
 
 (defun oldt-service-browse-logs ()
   (interactive)
@@ -348,6 +350,16 @@
 (defun oldt-service-browse-deploy ()
   (loop for url in (split-string (oldt-service-get-property "CI"))
         do (org-open-link-from-string url)))
+
+(defun oldt-service-browse-url ()
+  (let ((property "URL"))
+    (if-let (val (-> property
+                   oldt-service-get-property
+                   split-string))
+      (if (> (length val) 1)
+          (org-open-link-from-string
+           (org-completing-read (format "Browse %s: " property) val))
+        (org-open-link-from-string (car val))))))
 
 (defun oldt-tt (&rest mappings)
   (loop for mapping in mappings
