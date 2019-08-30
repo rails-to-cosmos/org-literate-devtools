@@ -284,7 +284,7 @@
 *** browse-pr
 #+begin_src emacs-lisp
 (defun oldt-task-browse-pull-request ()
-  (oldt-browse "PULL_REQUEST" #'oldt-task-get-property))
+  (oldt-task-browse "PULL_REQUEST"))
 #+end_src
 *** set-pull-request-prop
 #+begin_src emacs-lisp

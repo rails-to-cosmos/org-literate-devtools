@@ -206,7 +206,7 @@
       (insert "."))))
 
 (defun oldt-task-browse-pull-request ()
-  (oldt-browse "PULL_REQUEST" #'oldt-task-get-property))
+  (oldt-task-browse "PULL_REQUEST"))
 
 (defun oldt-set-pull-request-if-not-specified ()
   (when (oldt-at-task-p)
