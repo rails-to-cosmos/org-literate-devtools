@@ -289,10 +289,10 @@
 *** set-pull-request-prop
 #+begin_src emacs-lisp
 (defun oldt-set-pull-request-if-not-specified ()
-  (when (and (oldt-at-task-p)
-             (not (oldt-task-get-property "PULL_REQUEST")))
-    (-some->> (org-read-property-value "PULL_REQUEST")
-              (oldt-task-set-property "PULL_REQUEST"))
+  (when (oldt-at-task-p)
+    (unless (oldt-task-get-property "PULL_REQUEST")
+      (-some->> (org-read-property-value "PULL_REQUEST")
+                (oldt-task-set-property "PULL_REQUEST")))
     (when (org-clocking-p)
       (let ((org-clock-out-switch-to-state "CODE_REVIEW"))
         (org-clock-out)))))
