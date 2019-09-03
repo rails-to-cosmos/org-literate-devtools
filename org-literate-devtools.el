@@ -198,9 +198,8 @@
     (not (oldt-at-project-p))))
 
 (defun oldt-task-insert-commit-message ()
-  (let ((msg (read-string "Commit message: "
-                          (concat (oldt-project-get-property "TICKET") ": "
-                                  (oldt-task-get-property "ITEM")))))
+  (let ((msg (read-string "Commit message: " (oldt-task-get-property "ITEM"))))
+    (insert (concat (oldt-project-get-property "TICKET") ": "))
     (insert msg)
     (unless (s-ends-with-p "." msg)
       (insert "."))))
