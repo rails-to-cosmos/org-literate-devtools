@@ -436,7 +436,9 @@
 
 (aio-defun oldt-service-docker-compose-up ()
   (aio-await (oldt-service-start-process "docker-compose up" "*oldt-service-docker-output*"
-                                         "docker-compose" "up" "--force-recreate" "--build" "-d"))
+                                         "docker-compose" "up"
+                                         ;; "--force-recreate"
+                                         "--build" "-d"))
   (oldt-service-docker-container-logs))
 
 (aio-defun oldt-service-docker-compose-restart ()
