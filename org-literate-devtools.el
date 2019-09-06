@@ -173,6 +173,13 @@
              (org-todo value))
             (t (org-set-property property value))))))
 
+(defun oldt-narrow-to-project ()
+  (interactive)
+  (widen)
+  (oldt-goto-project)
+  (org-narrow-to-subtree)
+  (org-content))
+
 (defun oldt-project-browse-ticket ()
   (save-window-excursion
     (save-excursion
@@ -251,8 +258,9 @@
   (let (;; (state-from (substring-no-properties (or (plist-get change-plist :from) "")))
         (state-to (substring-no-properties (or (plist-get change-plist :to) ""))))
     (when-let (magic-property (oldt-project-get-property (format "TASK_%s" state-to)))
-      (when (oldt-at-task-p)
-        (eval (read magic-property))))))
+        (save-excursion
+          (oldt-goto-task)
+          (eval (read magic-property))))))
 (add-hook 'org-trigger-hook 'oldt-trigger-function)
 
 (defun oldt-task-get-property (property)

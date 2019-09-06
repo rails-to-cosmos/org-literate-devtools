@@ -211,6 +211,15 @@
              (org-todo value))
             (t (org-set-property property value))))))
 #+end_src
+*** narrow-to-project
+#+begin_src emacs-lisp
+(defun oldt-narrow-to-project ()
+  (interactive)
+  (widen)
+  (oldt-goto-project)
+  (org-narrow-to-subtree)
+  (org-content))
+#+end_src
 *** COMMENT toggle-explicit-category
 #+begin_src emacs-lisp
 (defun oldt-toggle-explicit-category ()
@@ -339,8 +348,9 @@
   (let (;; (state-from (substring-no-properties (or (plist-get change-plist :from) "")))
         (state-to (substring-no-properties (or (plist-get change-plist :to) ""))))
     (when-let (magic-property (oldt-project-get-property (format "TASK_%s" state-to)))
-      (when (oldt-at-task-p)
-        (eval (read magic-property))))))
+        (save-excursion
+          (oldt-goto-task)
+          (eval (read magic-property))))))
 (add-hook 'org-trigger-hook 'oldt-trigger-function)
 #+end_src
 *** get-task-property
