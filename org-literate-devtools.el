@@ -181,6 +181,13 @@
              (org-todo value))
             (t (org-set-property property value))))))
 
+(defun oldt-narrow-to-project ()
+  (interactive)
+  (widen)
+  (oldt-goto-project)
+  (org-narrow-to-subtree)
+  (org-content))
+
 (defun oldt-project-browse-ticket ()
   (save-window-excursion
     (save-excursion
@@ -206,9 +213,8 @@
     (not (oldt-at-project-p))))
 
 (defun oldt-task-insert-commit-message ()
-  (let ((msg (read-string "Commit message: "
-                          (concat (oldt-project-get-property "TICKET") ": "
-                                  (oldt-task-get-property "ITEM")))))
+  (let ((msg (read-string "Commit message: " (oldt-task-get-property "ITEM"))))
+    (insert (concat (oldt-project-get-property "TICKET") ": "))
     (insert msg)
     (unless (s-ends-with-p "." msg)
       (insert "."))))
@@ -260,8 +266,9 @@
   (let (;; (state-from (substring-no-properties (or (plist-get change-plist :from) "")))
         (state-to (substring-no-properties (or (plist-get change-plist :to) ""))))
     (when-let (magic-property (oldt-project-get-property (format "TASK_%s" state-to)))
-      (when (oldt-at-task-p)
-        (eval (read magic-property))))))
+        (save-excursion
+          (oldt-goto-task)
+          (eval (read magic-property))))))
 (add-hook 'org-trigger-hook 'oldt-trigger-function)
 
 (defun oldt-task-get-property (property)
@@ -338,7 +345,9 @@
 
 (aio-defun oldt-service-docker-compose-up ()
   (aio-await (oldt-service-start-process "docker-compose up" "*oldt-service-docker-output*"
-                                         "docker-compose" "up" "--force-recreate" "--build" "-d"))
+                                         "docker-compose" "up"
+                                         ;; "--force-recreate"
+                                         "--build" "-d"))
   (oldt-service-docker-container-logs))
 
 (aio-defun oldt-service-docker-compose-restart ()
