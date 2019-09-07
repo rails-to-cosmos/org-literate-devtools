@@ -56,6 +56,14 @@
      (when (funcall predicate)
        (point-marker)))))
 
+(aio-defun oldt-start-process-async (pname buf &rest args)
+  (message "Start process \"%s\"" pname)
+  (let* ((proc (apply #'start-process pname buf args)))
+    (while (string= (process-status proc) "run")
+      (aio-await (aio-sleep 1)))
+    (message "Process \"%s\" exited with code %s" pname (process-exit-status proc))
+    (process-exit-status proc)))
+
 (defun oldt-at-project-p ()
   (save-excursion
     (org-back-to-heading)
@@ -673,6 +681,55 @@ used to limit the exported source code blocks by language."
   (let ((state (oldt-task-get-property "STATE"))
         (default-directory (file-name-directory (buffer-file-name (org-clocking-buffer)))))
     (oldt-trigger-function (list :from "TODO" :to state))))
+
+(defun oldt-report (id &rest args)
+  (let ((entry-id (or id (org-id-uuid)))
+        (report-buffer-name "*oldt-projects-overview*"))
+    (save-window-excursion
+      (switch-to-buffer report-buffer-name)
+      (when (string-empty-p (buffer-string))
+        (insert "#+TODO: STARTED FAILED | OK")
+        (org-mode))
+      (goto-char (point-max))
+      (if (not (null id))
+          (progn
+            (search-backward id)
+            (org-back-to-heading)
+            (org-todo (car args)))
+        (org-insert-heading)
+        (apply #'insert args)
+        (org-set-property "ID" entry-id)
+        ;; (org-back-to-heading)
+        ;; (org-set-property "TS" (format-time-string "%Y-%m-%d %H:%M:%S"))
+        (org-back-to-heading)
+        (org-todo "STARTED")
+        (org-overview)))
+    entry-id))
+
+(aio-defun oldt-process-report (project-name description promise)
+  (let ((log-id (oldt-report nil project-name description)))
+    (aio-await promise)
+    (let ((result (funcall (aio-result promise))))
+      (oldt-report log-id (cond ((> result 0) "FAILED")
+                                ((= result 0) "OK"))))))
+
+(aio-defun oldt-git-project-overview (project-directory)
+  (let ((default-directory project-directory)
+        (process-buffer (generate-new-buffer-name "*project-status*"))
+        (project-name (format "[[[file+emacs:%s][%s]]] "
+                              project-directory
+                              (file-name-nondirectory project-directory))))
+
+    (aio-await
+     (oldt-process-report project-name "update repository"
+                           (oldt-start-process-async "git-remote-update" process-buffer
+                                                     "git" "remote" "update")))
+
+    (aio-await
+     (oldt-process-report project-name "git pull"
+                           (oldt-start-process-async "git-pull" process-buffer
+                                                     "git" "pull")))
+    (kill-buffer process-buffer)))
 
 (setq oldt-note-reader--current-marker nil)
 
