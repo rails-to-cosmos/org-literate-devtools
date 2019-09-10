@@ -725,23 +725,27 @@ used to limit the exported source code blocks by language."
                                 ((= result 0) "OK"))))))
 
 (aio-defun oldt-git-project-overview (project-directory)
-  (let ((process-buffer (generate-new-buffer-name "*project-status*")))
-    (loop for .git in (directory-files-recursively project-directory "^.git$" t)
-          do (let* ((default-directory (file-name-directory .git))
-                    (project-name (format "[[[file+emacs:%s][%s]]] "
-                                          default-directory
-                                          (file-name-nondirectory
-                                           (directory-file-name
-                                            default-directory)))))
-               (aio-await
-                (oldt-process-report project-name "update repository"
-                                     (oldt-start-process-async "git-remote-update" process-buffer
-                                                               "git" "remote" "update")))
-               (aio-await
-                (oldt-process-report project-name "git pull"
-                                     (oldt-start-process-async "git-pull" process-buffer
-                                                               "git" "pull")))
-               (kill-buffer process-buffer)))))
+  (loop for .git in (directory-files-recursively project-directory "^.git$" t)
+        do (oldt--directory-overview .git)))
+
+(aio-defun oldt--directory-overview (dir)
+  (let* ((process-buffer (generate-new-buffer-name "*project-status*"))
+         (default-directory (file-name-directory dir))
+         (project-name (format "[[[file+emacs:%s][%s]]] "
+                               default-directory
+                               (file-name-nondirectory
+                                (directory-file-name
+                                 default-directory)))))
+    (aio-await
+     (oldt-process-report project-name "update repository"
+                          (oldt-start-process-async "git-remote-update" process-buffer
+                                                    "git" "remote" "update")))
+    (aio-await
+     (oldt-process-report project-name "git pull"
+                          (oldt-start-process-async "git-pull" process-buffer
+                                                    "git" "pull")))
+
+    (kill-buffer process-buffer)))
 
 (setq oldt-note-reader--current-marker nil)
 
