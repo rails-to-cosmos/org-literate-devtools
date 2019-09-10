@@ -66,9 +66,10 @@
 
 (defun oldt-at-project-p ()
   (save-excursion
-    (org-back-to-heading)
-    (org-beginning-of-line)
-    (plist-get (org-element--get-node-properties) :PROJECT)))
+    (when (eq (buffer-mode) 'org-mode)
+      (org-back-to-heading)
+      (org-beginning-of-line)
+      (plist-get (org-element--get-node-properties) :PROJECT))))
 
 (defun oldt-project-menu ()
   (interactive)
@@ -94,10 +95,10 @@
                  "task-browse-pull-request")))
     (if-let (project-name (oldt-project-get-property "ITEM"))
         (-some->> items
-                      (org-completing-read (concat project-name ": "))
-                      (concat "oldt-")
-                      (intern)
-                      (funcall))
+                  (org-completing-read (concat project-name ": "))
+                  (concat "oldt-")
+                  (intern)
+                  (funcall))
       (message "Unable to find project."))))
 
 (defun oldt-project-insert-ticket ()
