@@ -774,7 +774,8 @@ used to limit the exported source code blocks by language."
           (dolist (message messages)
             (insert "\n")
             (indent-line-to ind)
-            (insert message)))))
+            (insert message)))
+        (org-overview)))
     id))
 
 (aio-defun oldt-process-report (project-name description log-id promise)
