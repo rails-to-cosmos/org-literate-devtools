@@ -295,6 +295,10 @@
         (org-id-goto service)
         (oldt-get-node-property property)))))
 
+(defun oldt-service-docker-system-prune ()
+  (interactive)
+  (async-shell-command "docker system prune"))
+
 (defun oldt-service-docker-container-dired ()
   (interactive)
   (oldt-goto-project)

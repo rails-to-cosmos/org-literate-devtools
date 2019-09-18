@@ -396,6 +396,10 @@
 #+end_src
 *** docker
 #+begin_src emacs-lisp
+(defun oldt-service-docker-system-prune ()
+  (interactive)
+  (async-shell-command "docker system prune"))
+
 (defun oldt-service-docker-container-dired ()
   (interactive)
   (oldt-goto-project)
