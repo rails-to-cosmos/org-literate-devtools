@@ -353,7 +353,8 @@
   (aio-await (oldt-service-start-process "docker-compose up" "*oldt-service-docker-output*"
                                          "docker-compose" "up"
                                          ;; "--force-recreate"
-                                         "--build" "-d"))
+                                         "--build"
+                                         "-d"))
   (oldt-service-docker-container-logs))
 
 (aio-defun oldt-service-docker-compose-restart ()
@@ -704,22 +705,21 @@ used to limit the exported source code blocks by language."
 
 (defun oldt-report-create (headline)
   (let ((entry-id (org-id-uuid))
-        (report-buffer-name "*oldt-projects-overview*"))
-    (save-window-excursion
-      (switch-to-buffer report-buffer-name)
-      (save-excursion
-        (if (string-empty-p (buffer-string))
-            (oldt-report-buffer-init)
-          (goto-char (point-max)))
-        (org-insert-heading)
-        (insert headline)
-        (org-set-property "ID" entry-id)
-        (org-back-to-heading)
-        (org-todo "STARTED")))
+        (report-buffer (get-buffer-create "*oldt-projects-overview*")))
+    (with-current-buffer report-buffer
+      (if (string-empty-p (buffer-string))
+          (oldt-report-buffer-init)
+        (goto-char (point-max)))
+      (org-insert-heading)
+      (insert headline)
+      (org-set-property "ID" entry-id)
+      (org-set-property "VISIBILITY" "folded")
+      (org-back-to-heading)
+      (org-todo "STARTED"))
     entry-id))
 
 (defun oldt-report-log (id state &rest messages)
-  (let* ((report-buffer-name "*oldt-projects-overview*")
+  (let* ((report-buffer (get-buffer-create "*oldt-projects-overview*"))
          (note (cdr (assq 'note org-log-note-headings))))
     (setq note (org-replace-escapes
 	        note
@@ -754,40 +754,36 @@ used to limit the exported source code blocks by language."
 				       org-log-note-previous-state 1 -1)))
 			     (t (format "\"%s\""
 				        org-log-note-previous-state)))))))
-    (save-window-excursion
-      (switch-to-buffer report-buffer-name)
-      (save-excursion
-        (goto-char (point-max))
-        (search-backward id)
-        (org-back-to-heading)
-        (when state
-          (org-todo state))
-        (goto-char (org-log-beginning t))
-        ;; Make sure point is at the beginning of an empty line.
-	(cond ((not (bolp)) (let ((inhibit-read-only t)) (insert "\n")))
-	      ((looking-at "[ \t]*\\S-") (save-excursion (insert "\n"))))
-        (let ((itemp (org-in-item-p)))
-	  (if itemp
-	      (indent-line-to
-	       (let ((struct (save-excursion
-			       (goto-char itemp) (org-list-struct))))
-		 (org-list-get-ind (org-list-get-top-point struct) struct)))
-	    (org-indent-line)))
-        (insert (org-list-bullet-string "-") note)
-        (let ((ind (org-list-item-body-column (line-beginning-position))))
-          (dolist (message messages)
-            (insert "\n")
-            (indent-line-to ind)
-            (insert message)))
-        (org-overview)))
+    (with-current-buffer report-buffer
+      (goto-char (point-max))
+      (search-backward id)
+      (org-back-to-heading)
+      (when state
+        (org-todo state))
+      (goto-char (org-log-beginning t))
+      ;; Make sure point is at the beginning of an empty line.
+      (cond ((not (bolp)) (let ((inhibit-read-only t)) (insert "\n")))
+            ((looking-at "[ \t]*\\S-") (save-excursion (insert "\n"))))
+      (if-let (itemp (org-in-item-p))
+          (indent-line-to
+             (let ((struct (save-excursion
+                             (goto-char itemp) (org-list-struct))))
+               (org-list-get-ind (org-list-get-top-point struct) struct)))
+        (org-indent-line))
+      (insert (org-list-bullet-string "-") note)
+      (let ((ind (org-list-item-body-column (line-beginning-position))))
+        (dolist (message messages)
+          (insert "\n")
+          (indent-line-to ind)
+          (insert message)))
+      (org-set-visibility-according-to-property))
     id))
 
 (aio-defun oldt-process-report (project-name description log-id promise)
-  (aio-await promise)
-  (let* ((result (funcall (aio-result promise)))
+  (let* ((result (aio-await promise))
          (state (cond ((> result 0) "FAILED")
                       ((= result 0) "OK"))))
-    (run-with-idle-timer 2 nil #'oldt-report-log log-id state description)))
+    (oldt-report-log log-id state description)))
 
 (aio-defun oldt-git-project-overview (project-directory)
   (loop for .git in (directory-files-recursively project-directory "^.git$" t)
