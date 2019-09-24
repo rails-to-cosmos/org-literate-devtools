@@ -898,9 +898,10 @@ used to limit the exported source code blocks by language."
   (interactive)
   (when (and (boundp 'oldt-source-dir)
              (boundp 'oldt-target-dir))
-    (copy-file (buffer-file-name)
-               (s-replace oldt-source-dir oldt-target-dir (buffer-file-name))
-               t)))
+    (let* ((source (buffer-file-name))
+           (target (s-replace oldt-source-dir oldt-target-dir source)))
+      (make-directory (file-name-directory target) t)
+      (copy-file source target t))))
 
 (add-hook 'after-save-hook 'oldt-send-current-to-remote)
 
