@@ -222,7 +222,19 @@
       (insert "."))))
 
 (defun oldt-task-browse-pull-request ()
-  (oldt-task-browse "PULL_REQUEST"))
+  (cond ((oldt-at-task-p) (oldt-task-browse "PULL_REQUEST"))
+        ((oldt-at-project-p)
+         (save-restriction
+           (org-narrow-to-subtree)
+           (org-element-map (org-element-parse-buffer) 'headline
+             (lambda (hl) (let ((property (substring-no-properties (org-element-property :todo-keyword hl))))
+                       (when (string= property "CODE_REVIEW")
+                         (save-excursion
+                           (goto-char (org-element-property :begin hl))
+                           (when-let ((pr (plist-get (org-element--get-node-properties) :PULL_REQUEST)))
+                             (browse-url pr)))))))))
+        (t (oldt-goto-project)
+           (oldt-task-browse-pull-request))))
 
 (defun oldt-set-pull-request-if-not-specified ()
   (when (oldt-at-task-p)
