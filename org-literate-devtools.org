@@ -110,6 +110,7 @@
 
                  "service-docker-compose-config"
                  "service-docker-compose-down"
+                 "service-docker-compose-build"
                  "service-docker-compose-restart"
                  "service-docker-compose-up"
                  "service-docker-container-dired"
@@ -458,16 +459,18 @@
       (message "%s: Process \"%s\" exited with status \"%s\"" service pname (process-status proc)))))
 
 (aio-defun oldt-service-docker-compose-down ()
-  (aio-await (oldt-service-start-process "docker-compose down" "*oldt-service-docker-output*" "docker-compose" "down"))
-  ;; (aio-await (oldt-service-start-process "docker image prune" "*oldt-service-docker-output*" "docker" "image" "prune" "-f"))
-  )
+  (aio-await (oldt-service-start-process "docker-compose down" "*oldt-service-docker-output*" "docker-compose" "down")))
+
+(aio-defun oldt-service-docker-compose-build ()
+  (aio-await (oldt-service-start-process "docker-compose build" "*oldt-service-docker-output*" "docker-compose" "build")))
 
 (aio-defun oldt-service-docker-compose-up ()
   (aio-await (oldt-service-start-process "docker-compose up" "*oldt-service-docker-output*"
-                                         "docker-compose" "up"
+                                         "docker-compose" "up" "app"
                                          ;; "--force-recreate"
-                                         "--build"
-                                         "-d"))
+                                         ;; "--build"
+                                         ;; "-d"
+                                         ))
   (oldt-service-docker-container-logs))
 
 (aio-defun oldt-service-docker-compose-restart ()
