@@ -67,14 +67,13 @@
 
 (defun oldt-at-project-p ()
   (save-excursion
-    (when (eq (buffer-mode) 'org-mode)
-      (org-back-to-heading)
-      (org-beginning-of-line)
-      (plist-get (org-element--get-node-properties) :PROJECT))))
+    (org-back-to-heading)
+    (org-beginning-of-line)
+    (plist-get (org-element--get-node-properties) :PROJECT)))
 
 (defun oldt-project-menu ()
   (interactive)
-  (let ((items `("service-eshell"
+  (let ((items '("service-eshell"
                  "service-browse-repo"
                  "service-browse-deploy"
                  "service-browse-logs"
@@ -101,7 +100,7 @@
                   (concat "oldt-")
                   (intern)
                   (funcall))
-      (message "Unable to find project."))))
+      (user-error "Unable to find project."))))
 
 (defun oldt-project-insert-ticket ()
   (interactive)
@@ -247,7 +246,7 @@
         (org-clock-out)))))
 
 (defun oldt-search-task ()
-  (if (cond ((org-at-heading-p) (oldt-at-task-p))
+  (if (cond ((oldt-at-task-p) t)
             ((org-clocking-p) (progn
                                 (org-clock-goto)
                                 (oldt-at-task-p)))
@@ -365,7 +364,7 @@
 
 (aio-defun oldt-service-docker-compose-up ()
   (aio-await (oldt-service-start-process "docker-compose up" "*oldt-service-docker-output*"
-                                         "docker-compose" "up" "app"
+                                         "docker-compose" "up"
                                          ;; "--force-recreate"
                                          ;; "--build"
                                          ;; "-d"
