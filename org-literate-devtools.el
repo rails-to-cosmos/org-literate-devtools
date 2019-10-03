@@ -210,9 +210,11 @@
 
 (defun oldt-at-task-p ()
   (save-excursion
-    (org-back-to-heading)
-    (org-beginning-of-line)
-    (not (oldt-at-project-p))))
+    (when (condition-case nil
+              (org-back-to-heading)
+            (error nil))
+      (org-beginning-of-line)
+      (not (oldt-at-project-p)))))
 
 (defun oldt-task-insert-commit-message ()
   (let ((msg (read-string "Commit message: " (oldt-task-get-property "ITEM"))))
@@ -369,7 +371,8 @@
                                          ;; "--build"
                                          ;; "-d"
                                          ))
-  (oldt-service-docker-container-logs))
+  ;; (oldt-service-docker-container-logs)
+  )
 
 (aio-defun oldt-service-docker-compose-restart ()
   (aio-await (oldt-service-docker-compose-down))

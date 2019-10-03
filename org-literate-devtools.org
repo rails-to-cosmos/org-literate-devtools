@@ -288,9 +288,11 @@
 #+begin_src emacs-lisp
 (defun oldt-at-task-p ()
   (save-excursion
-    (org-back-to-heading)
-    (org-beginning-of-line)
-    (not (oldt-at-project-p))))
+    (when (condition-case nil
+              (org-back-to-heading)
+            (error nil))
+      (org-beginning-of-line)
+      (not (oldt-at-project-p)))))
 #+end_src
 *** commit-messages
 #+begin_src emacs-lisp
@@ -470,7 +472,8 @@
                                          ;; "--build"
                                          ;; "-d"
                                          ))
-  (oldt-service-docker-container-logs))
+  ;; (oldt-service-docker-container-logs)
+  )
 
 (aio-defun oldt-service-docker-compose-restart ()
   (aio-await (oldt-service-docker-compose-down))
