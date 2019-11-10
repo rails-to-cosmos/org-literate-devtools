@@ -57,12 +57,30 @@
        (point-marker)))))
 
 (aio-defun oldt-start-process-async (pname buf &rest args)
-  ;; (message "Start process \"%s\"" pname)
-  (let* ((proc (apply #'start-process pname buf args)))
+  (let* ((proc (make-process
+                :name pname
+                :buffer buf
+                :command args
+                :coding '(mac . unix)
+                :filter (lambda (p _m)
+                          (with-current-buffer (process-buffer p)
+                            (save-excursion
+                              (goto-char (point-max))
+                              (loop for line in (split-string
+                                                 (encode-coding-string (decode-coding-string _m 'mac) 'unix)
+                                                 "\n")
+                                    when (not (string-blank-p line))
+                                    do (progn
+                                         (insert (concat (current-time-string) " " (string-trim line)))
+                                         (ansi-color-apply-on-region (save-excursion
+                                                                       (beginning-of-line)
+                                                                       (point))
+                                                                     (save-excursion
+                                                                       (end-of-line)
+                                                                       (point)))
+                                         (insert "\n")))))))))
     (while (string= (process-status proc) "run")
       (aio-await (aio-sleep 1)))
-    ;; (run-with-idle-timer 2 nil #'message
-    ;;                      "Process \"%s\" exited with code %s" pname (process-exit-status proc))
     (process-exit-status proc)))
 
 (defun oldt-at-project-p ()
@@ -352,11 +370,8 @@
 (aio-defun oldt-service-start-process (pname buf &rest args)
   (let ((service (oldt-service-get-property "ITEM")))
     (message "%s: Start process \"%s\"" service pname)
-    (let* ((default-directory (oldt-service-get-property "PATH"))
-           (proc (apply #'start-process pname buf args)))
-      (while (string= (process-status proc) "run")
-        (aio-await (aio-sleep 1)))
-      (message "%s: Process \"%s\" exited with status \"%s\"" service pname (process-status proc)))))
+    (let* ((default-directory (oldt-service-get-property "PATH")))
+      (aio-await (apply #'oldt-start-process-async pname buf args)))))
 
 (aio-defun oldt-service-docker-compose-down ()
   (aio-await (oldt-service-start-process "docker-compose down" "*oldt-service-docker-output*" "docker-compose" "down")))
@@ -376,6 +391,7 @@
 
 (aio-defun oldt-service-docker-compose-restart ()
   (aio-await (oldt-service-docker-compose-down))
+  (aio-await (oldt-service-docker-compose-build))
   (aio-await (oldt-service-docker-compose-up)))
 
 (defun oldt-service-browse-repo ()
