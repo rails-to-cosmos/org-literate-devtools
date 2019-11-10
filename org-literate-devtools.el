@@ -108,14 +108,6 @@
       (aio-await (aio-sleep 0.1)))
     (process-exit-status proc)))
 
-(progn
-  (when (re-search-forward "\\(\\w*WARNING\\)" (point-max) t 1)
-    (let ((beg (match-beginning 0))
-          (end (match-end 0)))
-      (add-face-text-property beg end 'compilation-warning t (current-buffer)))))
-
-;; asdf UserWarning
-
 (defun oldt-at-project-p ()
   (save-excursion
     (org-back-to-heading)
