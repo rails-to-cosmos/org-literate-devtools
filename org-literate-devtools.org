@@ -85,24 +85,38 @@
                 :command args
                 :coding '(mac . unix)
                 :filter (lambda (p _m)
-                          (with-current-buffer (process-buffer p)
-                            (save-excursion
-                              (goto-char (point-max))
-                              (loop for line in (split-string
-                                                 (encode-coding-string (decode-coding-string _m 'mac) 'unix)
-                                                 "\n")
-                                    when (not (string-blank-p line))
-                                    do (progn
-                                         (insert (concat (current-time-string) " " (string-trim line)))
-                                         (ansi-color-apply-on-region (save-excursion
-                                                                       (beginning-of-line)
-                                                                       (point))
-                                                                     (save-excursion
-                                                                       (end-of-line)
-                                                                       (point)))
-                                         (insert "\n")))))))))
+                          (let ((buffer (process-buffer p))
+                                (message (encode-coding-string (decode-coding-string _m 'mac) 'unix)))
+                            (with-current-buffer buffer
+                              (loop for line in (split-string message "\n")
+                                    do (let ((beg (save-excursion
+                                                    (beginning-of-line)
+                                                    (point))))
+
+                                         (goto-char (point-max))
+                                         (insert (string-trim line))
+                                         (when (not (eq beg (point-max)))
+                                           (loop for rt in `((,(unibyte-string 226 149 152) . "╘")
+                                                             (,(unibyte-string 226 149 146) . "╒")
+                                                             (,(unibyte-string 226 149 158) . "╞")
+                                                             (,(unibyte-string 226 149 167) . "╧")
+                                                             (,(unibyte-string 226 149 170) . "╪")
+                                                             (,(unibyte-string 226 149 155) . "╛")
+                                                             (,(unibyte-string 226 149 161) . "╡")
+                                                             (,(unibyte-string 226 148 130) . "│")
+                                                             (,(unibyte-string 226 149 149) . "╕")
+                                                             (,(unibyte-string 226 149 164) . "╤")
+                                                             (,(unibyte-string 226 149 144) . "═"))
+                                                 do (save-excursion
+                                                      (goto-char beg)
+                                                      (while (search-forward (car rt) nil t)
+                                                        (replace-match (cdr rt)))))
+
+                                           (goto-char (point-max))
+                                           (ansi-color-apply-on-region beg (point-max))
+                                           (insert "\n"))))))))))
     (while (string= (process-status proc) "run")
-      (aio-await (aio-sleep 1)))
+      (aio-await (aio-sleep 0.1)))
     (process-exit-status proc)))
 #+end_src
 * Features
