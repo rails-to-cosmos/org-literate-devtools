@@ -78,6 +78,19 @@
 #+end_src
 ** start-process-async
 #+begin_src emacs-lisp
+(setq oldt-special-symbols
+      `((,(unibyte-string 226 149 152) . "╘")
+        (,(unibyte-string 226 149 146) . "╒")
+        (,(unibyte-string 226 149 158) . "╞")
+        (,(unibyte-string 226 149 167) . "╧")
+        (,(unibyte-string 226 149 170) . "╪")
+        (,(unibyte-string 226 149 155) . "╛")
+        (,(unibyte-string 226 149 161) . "╡")
+        (,(unibyte-string 226 148 130) . "│")
+        (,(unibyte-string 226 149 149) . "╕")
+        (,(unibyte-string 226 149 164) . "╤")
+        (,(unibyte-string 226 149 144) . "═")))
+
 (aio-defun oldt-start-process-async (pname buf &rest args)
   (let* ((proc (make-process
                 :name pname
@@ -92,30 +105,19 @@
                                     do (let ((beg (save-excursion
                                                     (beginning-of-line)
                                                     (point))))
-
                                          (goto-char (point-max))
                                          (insert (string-trim line))
                                          (when (not (eq beg (point-max)))
-                                           (loop for rt in `((,(unibyte-string 226 149 152) . "╘")
-                                                             (,(unibyte-string 226 149 146) . "╒")
-                                                             (,(unibyte-string 226 149 158) . "╞")
-                                                             (,(unibyte-string 226 149 167) . "╧")
-                                                             (,(unibyte-string 226 149 170) . "╪")
-                                                             (,(unibyte-string 226 149 155) . "╛")
-                                                             (,(unibyte-string 226 149 161) . "╡")
-                                                             (,(unibyte-string 226 148 130) . "│")
-                                                             (,(unibyte-string 226 149 149) . "╕")
-                                                             (,(unibyte-string 226 149 164) . "╤")
-                                                             (,(unibyte-string 226 149 144) . "═"))
+                                           (loop for rt in oldt-special-symbols
                                                  do (save-excursion
                                                       (goto-char beg)
                                                       (while (search-forward (car rt) nil t)
                                                         (replace-match (cdr rt)))))
 
-                                           (loop for rt in `(("INFO" . compilation-info)
+                                           (loop for rt in `(("\\(\\w*INFO\\w*\\)" . compilation-info)
                                                              ("\\(\\w*WARN\\w*\\)" . compilation-warning)
-                                                             ("CRIT" . compilation-error)
-                                                             ("FATAL" . compilation-error))
+                                                             ("\\(\\w*CRIT\\w*\\)" . compilation-error)
+                                                             ("\\(\\w*FATAL\\w*\\)" . compilation-error))
                                                  do (save-excursion
                                                       (goto-char beg)
                                                       (when (re-search-forward (car rt) (point-max) t)
@@ -1075,6 +1077,27 @@ used to limit the exported source code blocks by language."
                                            ))))))))
 
 (add-hook 'org-capture-before-finalize-hook 'oldt-jira-capture-ticket-title)
+#+end_src
+
+#+name: get-active-sprint-list
+#+begin_src emacs-lisp
+(request "https://flocktory.atlassian.net/rest/agile/latest/board/48/sprint?state=active"
+           :headers `(("Authorization" . ,(oldt-jira-get-auth-token)))
+           :parser 'json-read
+           :success (cl-function (lambda (&key data &allow-other-keys)
+                         (prin1 (mapcar (lambda (item) (cdr (assq 'id item)))
+                                        (let-alist data .values))))))
+#+end_src
+
+#+name: get-my-sprint-tasks
+#+begin_src emacs-lisp
+(request
+ (url-encode-url "https://flocktory.atlassian.net/rest/api/latest/search?fields=key&jql=sprint=207 AND assignee=dmitriy.akatov")
+ :headers `(("Authorization" . ,(oldt-jira-get-auth-token)))
+ :parser 'json-read
+ :success (cl-function (lambda (&key data &allow-other-keys)
+                         (prin1 (mapcar (lambda (item) (cdr (assq 'key item)))
+                                        (let-alist data .issues))))))
 #+end_src
 ** class-variables
 #+begin_src emacs-lisp
