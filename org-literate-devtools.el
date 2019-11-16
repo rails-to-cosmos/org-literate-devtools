@@ -86,11 +86,11 @@
                                          (goto-char (point-max))
                                          (insert (string-trim line))
                                          (when (not (eq beg (point-max)))
-                                           ;; (loop for rt in oldt-special-symbols
-                                           ;;       do (save-excursion
-                                           ;;            (goto-char beg)
-                                           ;;            (while (search-forward (car rt) nil t)
-                                           ;;              (replace-match (cdr rt)))))
+                                           (loop for rt in oldt-special-symbols
+                                                 do (save-excursion
+                                                      (goto-char beg)
+                                                      (while (search-forward (car rt) nil t)
+                                                        (replace-match (cdr rt)))))
 
                                            (loop for rt in `(("\\(\\w*INFO\\w*\\)" . compilation-info)
                                                              ("\\(\\w*WARN\\w*\\)" . compilation-warning)
