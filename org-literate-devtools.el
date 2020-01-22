@@ -69,6 +69,12 @@
         (,(unibyte-string 226 149 164) . "╤")
         (,(unibyte-string 226 149 144) . "═")))
 
+(setq oldt-special-faces
+      `(("\\(\\w*INFO\\w*\\)" . compilation-info)
+        ("\\(\\w*WARN\\w*\\)" . compilation-warning)
+        ("\\(\\w*CRIT\\w*\\)" . compilation-error)
+        ("\\(\\w*FATAL\\w*\\)" . compilation-error)))
+
 (aio-defun oldt-start-process-async (pname buf &rest args)
   (let* ((proc (make-process
                 :name pname
@@ -92,10 +98,7 @@
                                                       (while (search-forward (car rt) nil t)
                                                         (replace-match (cdr rt)))))
 
-                                           (loop for rt in `(("\\(\\w*INFO\\w*\\)" . compilation-info)
-                                                             ("\\(\\w*WARN\\w*\\)" . compilation-warning)
-                                                             ("\\(\\w*CRIT\\w*\\)" . compilation-error)
-                                                             ("\\(\\w*FATAL\\w*\\)" . compilation-error))
+                                           (loop for rt in oldt-special-faces
                                                  do (save-excursion
                                                       (goto-char beg)
                                                       (when (re-search-forward (car rt) (point-max) t)
@@ -356,7 +359,7 @@
 
 (defun oldt-service-docker-system-prune ()
   (interactive)
-  (async-shell-command "docker system prune"))
+  (async-shell-command "docker system prune -a --volumes"))
 
 (defun oldt-service-docker-container-dired ()
   (interactive)
@@ -404,7 +407,7 @@
   (aio-await (oldt-service-start-process "docker-compose down" "*oldt-service-docker-output*" "docker-compose" "down")))
 
 (aio-defun oldt-service-docker-compose-build ()
-  (aio-await (oldt-service-start-process "docker-compose build" "*oldt-service-docker-output*" "docker-compose" "build")))
+  (aio-await (oldt-service-start-process "docker-compose build app" "*oldt-service-docker-output*" "docker-compose" "build" "app")))
 
 (aio-defun oldt-service-docker-compose-up ()
   (aio-await (oldt-service-start-process "docker-compose up" "*oldt-service-docker-output*"
@@ -936,20 +939,20 @@ used to limit the exported source code blocks by language."
 
 (add-hook 'org-capture-before-finalize-hook 'oldt-jira-capture-ticket-title)
 
-(request "https://flocktory.atlassian.net/rest/agile/latest/board/48/sprint?state=active"
-           :headers `(("Authorization" . ,(oldt-jira-get-auth-token)))
-           :parser 'json-read
-           :success (cl-function (lambda (&key data &allow-other-keys)
-                         (prin1 (mapcar (lambda (item) (cdr (assq 'id item)))
-                                        (let-alist data .values))))))
+;; (request "https://flocktory.atlassian.net/rest/agile/latest/board/48/sprint?state=active"
+;;            :headers `(("Authorization" . ,(oldt-jira-get-auth-token)))
+;;            :parser 'json-read
+;;            :success (cl-function (lambda (&key data &allow-other-keys)
+;;                          (prin1 (mapcar (lambda (item) (cdr (assq 'id item)))
+;;                                         (let-alist data .values))))))
 
-(request
- (url-encode-url "https://flocktory.atlassian.net/rest/api/latest/search?fields=key&jql=sprint=207 AND assignee=dmitriy.akatov")
- :headers `(("Authorization" . ,(oldt-jira-get-auth-token)))
- :parser 'json-read
- :success (cl-function (lambda (&key data &allow-other-keys)
-                         (prin1 (mapcar (lambda (item) (cdr (assq 'key item)))
-                                        (let-alist data .issues))))))
+;; (request
+;;  (url-encode-url "https://flocktory.atlassian.net/rest/api/latest/search?fields=key&jql=sprint=207 AND assignee=dmitriy.akatov")
+;;  :headers `(("Authorization" . ,(oldt-jira-get-auth-token)))
+;;  :parser 'json-read
+;;  :success (cl-function (lambda (&key data &allow-other-keys)
+;;                          (prin1 (mapcar (lambda (item) (cdr (assq 'key item)))
+;;                                         (let-alist data .issues))))))
 
 (defun oldt-service-add-class-variables (service path vars)
   (dir-locals-set-class-variables service vars)
