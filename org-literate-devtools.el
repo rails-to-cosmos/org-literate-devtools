@@ -75,40 +75,42 @@
         ("\\(\\w*CRIT\\w*\\)" . compilation-error)
         ("\\(\\w*FATAL\\w*\\)" . compilation-error)))
 
+(defun oldt-beautify-process-output (process coding-string)
+  (let ((buffer (process-buffer process))
+        (message (encode-coding-string (decode-coding-string coding-string 'mac) 'unix)))
+    (with-current-buffer buffer
+      (loop for line in (split-string message "\n")
+            do (let ((beg (save-excursion
+                            (beginning-of-line)
+                            (point))))
+                 (goto-char (point-max))
+                 (insert (string-trim line))
+                 (when (not (eq beg (point-max)))
+                   (loop for rt in oldt-special-symbols
+                         do (save-excursion
+                              (goto-char beg)
+                              (while (search-forward (car rt) nil t)
+                                (replace-match (cdr rt)))))
+
+                   (loop for rt in oldt-special-faces
+                         do (save-excursion
+                              (goto-char beg)
+                              (when (re-search-forward (car rt) (point-max) t)
+                                (let ((beg (match-beginning 0))
+                                      (end (match-end 0)))
+                                  (add-face-text-property beg end (cdr rt) t (current-buffer))))))
+
+                   (goto-char (point-max))
+                   (ansi-color-apply-on-region beg (point-max))
+                   (insert "\n")))))))
+
 (aio-defun oldt-start-process-async (pname buf &rest args)
   (let* ((proc (make-process
                 :name pname
                 :buffer buf
                 :command args
                 :coding '(mac . unix)
-                :filter (lambda (p _m)
-                          (let ((buffer (process-buffer p))
-                                (message (encode-coding-string (decode-coding-string _m 'mac) 'unix)))
-                            (with-current-buffer buffer
-                              (loop for line in (split-string message "\n")
-                                    do (let ((beg (save-excursion
-                                                    (beginning-of-line)
-                                                    (point))))
-                                         (goto-char (point-max))
-                                         (insert (string-trim line))
-                                         (when (not (eq beg (point-max)))
-                                           (loop for rt in oldt-special-symbols
-                                                 do (save-excursion
-                                                      (goto-char beg)
-                                                      (while (search-forward (car rt) nil t)
-                                                        (replace-match (cdr rt)))))
-
-                                           (loop for rt in oldt-special-faces
-                                                 do (save-excursion
-                                                      (goto-char beg)
-                                                      (when (re-search-forward (car rt) (point-max) t)
-                                                        (let ((beg (match-beginning 0))
-                                                              (end (match-end 0)))
-                                                          (add-face-text-property beg end (cdr rt) t (current-buffer))))))
-
-                                           (goto-char (point-max))
-                                           (ansi-color-apply-on-region beg (point-max))
-                                           (insert "\n"))))))))))
+                :filter #'oldt-beautify-process-output)))
     (while (string= (process-status proc) "run")
       (aio-await (aio-sleep 0.1)))
     (process-exit-status proc)))
@@ -247,14 +249,20 @@
             (when-let ((ticket-link (alist-get "ticket" org-link-abbrev-alist-local nil nil #'string=)))
               (browse-url (format ticket-link ticket))))))))
 
+(defun oldt-task-narrow ()
+  (interactive)
+  (oldt-goto-task)
+  (org-narrow-to-subtree)
+  (goto-char (point-max)))
+
 (defun oldt-task-browse (property)
   (if-let (val (-> property
                    oldt-task-get-property
                    split-string))
       (if (> (length val) 1)
-          (org-open-link-from-string
+          (org-link-open-from-string
            (org-completing-read (format "Browse %s: " property) val))
-        (org-open-link-from-string (car val)))))
+        (org-link-open-from-string (car val)))))
 
 (defun oldt-at-task-p ()
   (save-excursion
@@ -365,7 +373,7 @@
   (interactive)
   (oldt-goto-project)
   (let ((container (oldt-service-get-property "CONTAINER")))
-    (org-open-link-from-string (format "[[docker:%s]]" container))))
+    (org-link-open-from-string (format "[[docker:%s]]" container))))
 
 (defun oldt-service-docker-container-logs ()
   (interactive)
@@ -391,7 +399,7 @@
 ;;   (interactive)
 ;;   (oldt-goto-project)
 ;;   (let ((container (oldt-service-get-property "CONTAINER")))
-;;     (org-open-link-from-string (format "[[docker-logs:%s]]" container))))
+;;     (org-link-open-from-string (format "[[docker-logs:%s]]" container))))
 
 (defun oldt-service-docker-compose-config ()
   (let ((path (oldt-service-get-property "PATH")))
@@ -426,17 +434,17 @@
 
 (defun oldt-service-browse-repo ()
   (when-let ((repo-url (oldt-service-get-property "REPO")))
-    (org-open-link-from-string repo-url)))
+    (org-link-open-from-string repo-url)))
 
 (defun oldt-service-browse-logs ()
   (interactive)
   (oldt-goto-project)
   (let ((logs-url (oldt-service-get-property "LOGS")))
-    (org-open-link-from-string logs-url)))
+    (org-link-open-from-string logs-url)))
 
 (defun oldt-service-browse-deploy ()
   (loop for url in (split-string (oldt-service-get-property "CI"))
-        do (org-open-link-from-string url)))
+        do (org-link-open-from-string url)))
 
 (defun oldt-service-browse-url ()
   (let ((property "URL"))
@@ -444,9 +452,9 @@
                    oldt-service-get-property
                    split-string))
       (if (> (length val) 1)
-          (org-open-link-from-string
+          (org-link-open-from-string
            (org-completing-read (format "Browse %s: " property) val))
-        (org-open-link-from-string (car val))))))
+        (org-link-open-from-string (car val))))))
 
 (defun oldt-tt (&rest mappings)
   (loop for mapping in mappings
