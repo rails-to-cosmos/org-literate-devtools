@@ -142,6 +142,7 @@
                  "project-insert-ticket"
                  "project-insert-branch"
 
+                 "task-narrow"
                  "task-insert-commit-message"
                  "task-browse-pull-request")))
     (if-let (project-name (oldt-project-get-property "ITEM"))
@@ -338,7 +339,8 @@
   (let (;; (state-from (substring-no-properties (or (plist-get change-plist :from) "")))
         (state-to (substring-no-properties (or (plist-get change-plist :to) ""))))
     (when-let (magic-property (oldt-project-get-property (format "TASK_%s" state-to)))
-        (save-excursion
+        (progn
+          (message "Evaluating %s" magic-property)
           (oldt-goto-task)
           (eval (read magic-property))))))
 (add-hook 'org-trigger-hook 'oldt-trigger-function)
@@ -942,8 +944,7 @@ used to limit the exported source code blocks by language."
                                            (message "Setting JIRA_TASK_STATUS property extracted from Jira task")
                                            (oldt-project-set-property "JIRA_TASK_STATUS" .fields.status.name)
                                            (oldt-project-set-property "TODO_STATE"
-                                                                      (upcase (s-replace " " "_" .fields.status.name)))
-                                           ))))))))
+                                                                      (upcase (s-replace " " "_" .fields.status.name)))))))))))
 
 (add-hook 'org-capture-before-finalize-hook 'oldt-jira-capture-ticket-title)
 
