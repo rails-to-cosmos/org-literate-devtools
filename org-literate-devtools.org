@@ -510,10 +510,23 @@
   (let ((path (oldt-service-get-property "PATH")))
     (find-file (concat path "/docker-compose.yml"))))
 
+(defun oldt-load-env-file (env-file-name)
+  (loop for env in (read-lines env-file-name)
+        collect (let ((uncomenv (car (s-split-up-to "#" env 1))))
+                  (pcase-let ((`(,key ,value) (s-split-up-to "=" uncomenv 1)))
+                    (let ((val (->> value
+                                    (s-chop-prefix "\"")
+                                    (s-chop-suffix "\""))))
+                      (format "%s=%s" key val))))))
+
 (aio-defun oldt-service-start-process (pname buf &rest args)
   (let ((service (oldt-service-get-property "ITEM")))
     (message "%s: Start process \"%s\"" service pname)
-    (let* ((default-directory (oldt-service-get-property "PATH")))
+    (let* ((default-directory (oldt-service-get-property "PATH"))
+           (process-environment (append process-environment (oldt-load-env-file ".env.local"))))
+      ;; (message "Using extended process-environment:")
+      ;; (loop for env in process-environment
+      ;;       do (message env))
       (aio-await (apply #'oldt-start-process-async pname buf args)))))
 
 (aio-defun oldt-service-docker-compose-down ()
@@ -523,14 +536,7 @@
   (aio-await (oldt-service-start-process "docker-compose build app" "*oldt-service-docker-output*" "docker-compose" "build" "app")))
 
 (aio-defun oldt-service-docker-compose-up ()
-  (aio-await (oldt-service-start-process "docker-compose up" "*oldt-service-docker-output*"
-                                         "docker-compose" "up"
-                                         ;; "--force-recreate"
-                                         ;; "--build"
-                                         ;; "-d"
-                                         ))
-  ;; (oldt-service-docker-container-logs)
-  )
+  (aio-await (oldt-service-start-process "docker-compose up" "*oldt-service-docker-output*" "docker-compose" "up")))
 
 (aio-defun oldt-service-docker-compose-restart ()
   (aio-await (oldt-service-docker-compose-down))
