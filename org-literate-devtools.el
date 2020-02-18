@@ -142,6 +142,9 @@
                  "project-insert-ticket"
                  "project-insert-branch"
 
+                 "jira-get-ticket-worklog"
+                 "jira-update-project-status"
+
                  "task-narrow"
                  "task-insert-commit-message"
                  "task-browse-pull-request")))
@@ -881,12 +884,12 @@ used to limit the exported source code blocks by language."
 (defun oldt-jira-get-ticket-worklog (&optional ticket)
   (oldt-jira-get-ticket-data ticket 'read-worklog "worklog"))
 
-(defun oldt-jira-update-project-status ()
+(defun oldt-jira-update-project-status (&optional ticket)
   (interactive)
-  (oldt-jira-get-ticket-data ticket 'update-project-status "worklog"))
+  (oldt-jira-get-ticket-data ticket 'update-project-status))
 
 (defun oldt-jira-capture-ticket-title (&optional ticket)
-  (oldt-jira-get-ticket-data ticket 'capture-ticket-title "worklog"))
+  (oldt-jira-get-ticket-data ticket 'capture-ticket-title))
 
 (add-hook 'org-capture-before-finalize-hook 'oldt-jira-capture-ticket-title)
 
