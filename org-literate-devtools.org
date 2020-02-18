@@ -925,16 +925,16 @@ used to limit the exported source code blocks by language."
 #+begin_src emacs-lisp
 (defvar oldt-jira-login "" "Your Jira email address")
 (defvar oldt-jira-api-token "" "Jira API token, see how to generate it here: https://confluence.atlassian.com/cloud/api-tokens-938839638.html")
-(defvar oldt-jira-url-issue "https://flocktory.atlassian.net/rest/api/latest/issue/")
+(defvar oldt-jira-issue-url "https://flocktory.atlassian.net/rest/api/latest/issue/")
 #+end_src
 *** rest helpers
 #+begin_src emacs-lisp
 (defun oldt-jira-auth-header ()
   `(("Authorization" . ,(oldt-jira-get-auth-token))))
 
-(defun oldt-jira-url-ticket-data (ticket &optional parameter)
+(defun oldt-jira-ticket-url (ticket &optional parameter)
   (concat
-   oldt-jira-url-issue
+   oldt-jira-issue-url
    ticket
    (if parameter
        (concat "/" parameter)
@@ -949,53 +949,64 @@ used to limit the exported source code blocks by language."
   "Jira response factory (namespace)."
   (case method
 
-    ('ticket-worklog-read (cl-function
-                           (lambda (&key data &allow-other-keys)
-                             (let-alist data
-                               (let ((outbuf (get-buffer-create "*test-worklog*"))
-                                     (time-format "[%Y-%m-%d %a %H:%M]"))
-                                 (with-current-buffer outbuf
-                                   (org-mode)
-                                   (goto-char (point-max))
-                                   (unless (= (point-min) (point-max))
-                                     (insert "\n"))
-                                   (insert "* Jira worklog test\n")
-                                   (insert ":LOGBOOK:\n")
+    ('read-worklog (cl-function
+                    (lambda (&key data &allow-other-keys)
+                      (let-alist data
+                        (let ((outbuf (get-buffer-create "*test-worklog*"))
+                              (time-format "[%Y-%m-%d %a %H:%M]"))
+                          (with-current-buffer outbuf
+                            (org-mode)
+                            (goto-char (point-max))
+                            (unless (= (point-min) (point-max))
+                              (insert "\n"))
+                            (insert "* Jira worklog test\n")
+                            (insert ":LOGBOOK:\n")
 
-                                   (cl-flet* ((iso (time-string)
-                                                   (parse-iso8601-time-string time-string))
+                            (cl-flet* ((iso (time-string)
+                                            (parse-iso8601-time-string time-string))
 
-                                              (iso-to-org (time-string)
-                                                          (format-time-string
-                                                           time-format
-                                                           (iso time-string))))
+                                       (iso-to-org (time-string)
+                                                   (format-time-string
+                                                    time-format
+                                                    (iso time-string))))
 
-                                     (cl-loop for wl across-ref .worklogs
-                                              do (let* ((comment (alist-get 'comment wl))
-                                                        (created (iso-to-org (alist-get 'created wl)))
-                                                        (updated (iso-to-org (alist-get 'updated wl)))
-                                                        (started (iso-to-org (alist-get 'started wl)))
-                                                        (time-spent-seconds (alist-get 'timeSpentSeconds wl))
-                                                        (finished (->> wl
-                                                                       (alist-get 'started)
-                                                                       (iso-to-org)
-                                                                       (ts-parse-org)
-                                                                       (ts-adjust 'second time-spent-seconds)
-                                                                       (ts-format time-format))))
-                                                   (insert "CLOCK: " started "--" finished " => 0:00")
-                                                   (org-clock-update-time-maybe)
-                                                   (end-of-line)
-                                                   (insert "\n")
-                                                   (insert "- Note taken on " created ": \\\\" "\n")
-                                                   (insert "  ")
-                                                   (insert comment)
-                                                   (insert "\n"))))
+                              (cl-loop for wl across-ref .worklogs
+                                       do (let* ((comment (alist-get 'comment wl))
+                                                 (created (iso-to-org (alist-get 'created wl)))
+                                                 (updated (iso-to-org (alist-get 'updated wl)))
+                                                 (started (iso-to-org (alist-get 'started wl)))
+                                                 (time-spent-seconds (alist-get 'timeSpentSeconds wl))
+                                                 (finished (->> wl
+                                                                (alist-get 'started)
+                                                                (iso-to-org)
+                                                                (ts-parse-org)
+                                                                (ts-adjust 'second time-spent-seconds)
+                                                                (ts-format time-format))))
+                                            (insert "CLOCK: " started "--" finished " => 0:00")
+                                            (org-clock-update-time-maybe)
+                                            (end-of-line)
+                                            (insert "\n")
+                                            (insert "- Note taken on " created ": \\\\" "\n")
+                                            (insert "  ")
+                                            (insert comment)
+                                            (insert "\n"))))
 
-                                   (insert ":END:\n"))
-                                 (switch-to-buffer-other-window outbuf)
-                                 (org-show-all))))))
+                            (insert ":END:\n"))
+                          (switch-to-buffer-other-window outbuf)
+                          (org-show-all))))))
 
-    ('ticket-title-capture (cl-function
+    ('update-project-status (cl-function
+                             (lambda (&key data &allow-other-keys)
+                               (save-window-excursion
+                                 (save-excursion
+                                   (let-alist data
+                                     (message "Setting JIRA_TASK_STATUS property extracted from Jira task")
+                                     (oldt-project-set-property "JIRA_TASK_STATUS" .fields.status.name)
+                                     (oldt-project-set-property "TODO_STATE" (->> .fields.status.name
+                                                                                  (s-replace " " "_" )
+                                                                                  (upcase)))))))))
+
+    ('capture-ticket-title (cl-function
                             (lambda (&key data &allow-other-keys)
                               (save-window-excursion
                                 (save-excursion
@@ -1008,30 +1019,25 @@ used to limit the exported source code blocks by language."
 #+end_src
 *** public declarations
 #+begin_src emacs-lisp
-(defun oldt-jira-get-ticket-worklog (ticket)
+(defun oldt-jira-get-ticket-data (ticket handler &optional method)
   (request
-    (oldt-jira-url-ticket-data ticket "worklog")
+    (oldt-jira-ticket-url ticket method)
     :headers (oldt-jira-auth-header)
     :parser 'json-read
-    :success (oldt-jira-handler 'ticket-worklog-read)))
+    :success (oldt-jira-handler handler)))
+
+(defun oldt-jira-get-ticket-worklog (&optional ticket)
+  (when-let (ticket (or ticket (oldt-project-get-property "TICKET")))
+    (oldt-jira-get-ticket-data 'read-worklog "worklog")))
 
 (defun oldt-jira-update-project-status ()
   (interactive)
   (when-let (ticket (oldt-project-get-property "TICKET"))
-    (oldt-jira-get-ticket-summary ticket
-                                  (cl-function
-                                   (lambda (&key data &allow-other-keys)
-                                     (save-window-excursion
-                                       (save-excursion
-                                         (let-alist data
-                                           (message "Setting JIRA_TASK_STATUS property extracted from Jira task")
-                                           (oldt-project-set-property "JIRA_TASK_STATUS" .fields.status.name)
-                                           (oldt-project-set-property "TODO_STATE"
-                                                                      (upcase (s-replace " " "_" .fields.status.name)))))))))))
+    (oldt-jira-get-ticket-data 'update-project-status)))
 
 (defun oldt-jira-capture-ticket-title (&optional ticket)
   (when-let (ticket (or ticket (oldt-project-get-property "TICKET")))
-    (oldt-jira-get-ticket-summary ticket (oldt-jira-response-handle 'ticket-title-capture))))
+    (oldt-jira-get-ticket-data 'capture-ticket-title)))
 
 (add-hook 'org-capture-before-finalize-hook 'oldt-jira-capture-ticket-title)
 #+end_src
