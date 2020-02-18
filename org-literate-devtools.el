@@ -871,24 +871,22 @@ used to limit the exported source code blocks by language."
                                       (oldt-project-set-property "ITEM" (concat summary " [0%]")))))))))))
 
 (defun oldt-jira-get-ticket-data (ticket handler &optional method)
-  (request
-    (oldt-jira-ticket-url ticket method)
-    :headers (oldt-jira-auth-header)
-    :parser 'json-read
-    :success (oldt-jira-handler handler)))
+  (when-let (ticket (or ticket (oldt-project-get-property "TICKET")))
+    (request
+      (oldt-jira-ticket-url ticket method)
+      :headers (oldt-jira-auth-header)
+      :parser 'json-read
+      :success (oldt-jira-handler handler))))
 
 (defun oldt-jira-get-ticket-worklog (&optional ticket)
-  (when-let (ticket (or ticket (oldt-project-get-property "TICKET")))
-    (oldt-jira-get-ticket-data 'read-worklog "worklog")))
+  (oldt-jira-get-ticket-data ticket 'read-worklog "worklog"))
 
 (defun oldt-jira-update-project-status ()
   (interactive)
-  (when-let (ticket (oldt-project-get-property "TICKET"))
-    (oldt-jira-get-ticket-data 'update-project-status)))
+  (oldt-jira-get-ticket-data ticket 'update-project-status "worklog"))
 
 (defun oldt-jira-capture-ticket-title (&optional ticket)
-  (when-let (ticket (or ticket (oldt-project-get-property "TICKET")))
-    (oldt-jira-get-ticket-data 'capture-ticket-title)))
+  (oldt-jira-get-ticket-data ticket 'capture-ticket-title "worklog"))
 
 (add-hook 'org-capture-before-finalize-hook 'oldt-jira-capture-ticket-title)
 
