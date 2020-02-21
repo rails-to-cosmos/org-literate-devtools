@@ -909,9 +909,7 @@ used to limit the exported source code blocks by language."
 
 (defun oldt-jira-get-ticket-worklog ()
   (interactive)
-  (message "Olo: %s" (oldt-project-get-property "TICKET"))
   (when-let (ticket (oldt-project-get-property "TICKET"))
-    (message "URL: %s" (oldt-jira-ticket-url ticket "worklog"))
     (let ((url (oldt-jira-ticket-url ticket "worklog")))
       (request url
         :headers `(("Authorization" . ,(oldt-jira-get-auth-token)))
