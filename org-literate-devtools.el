@@ -798,12 +798,12 @@ used to limit the exported source code blocks by language."
 (defun oldt-jira-get-auth-token ()
   (concat "Basic " (base64-encode-string (concat oldt-jira-login ":" oldt-jira-api-token))))
 
-(defun oldt-jira-worklog-add ()
+(cl-defun oldt-jira-worklog-add (&key comment started time-spent)
   (interactive)
   (oldt-jira-post
-   :data (json-encode '(("comment" . "Read the docs")
-                        ("started" . "2020-02-20T09:23:19.552+0000")
-                        ("timeSpent" . "5m")))
+   :data (json-encode '(("comment" . comment)
+                        ("started" . started)  ;; "2020-02-20T09:23:19.552+0000"
+                        ("timeSpent" . time-spent))) ;; "5m"
    :method "worklog"
    :success (cl-function (lambda (&key data &allow-other-keys) (pp data)))
    :error (cl-function (lambda (&key data &allow-other-keys) (pp data)))))
