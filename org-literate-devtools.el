@@ -787,9 +787,6 @@ used to limit the exported source code blocks by language."
 (defvar oldt-jira-api-token "" "Jira API token, see how to generate it here: https://confluence.atlassian.com/cloud/api-tokens-938839638.html")
 (defvar oldt-jira-issue-url "https://flocktory.atlassian.net/rest/api/latest/issue/")
 
-(defun oldt-jira-auth-header ()
-  `(("Authorization" . ,(oldt-jira-get-auth-token))))
-
 (defun oldt-jira-ticket-url (ticket &optional parameter)
   (concat
    oldt-jira-issue-url
@@ -801,95 +798,136 @@ used to limit the exported source code blocks by language."
 (defun oldt-jira-get-auth-token ()
   (concat "Basic " (base64-encode-string (concat oldt-jira-login ":" oldt-jira-api-token))))
 
-(defun oldt-jira-handler (method)
-  "Jira response factory (namespace)."
-  (case method
-
-    ('read-worklog (cl-function
-                    (lambda (&key data &allow-other-keys)
-                      (let-alist data
-                        (let ((outbuf (get-buffer-create "*test-worklog*"))
-                              (time-format "[%Y-%m-%d %a %H:%M]"))
-                          (with-current-buffer outbuf
-                            (org-mode)
-                            (goto-char (point-max))
-                            (unless (= (point-min) (point-max))
-                              (insert "\n"))
-                            (insert "* Jira worklog test\n")
-                            (insert ":LOGBOOK:\n")
-
-                            (cl-flet* ((iso (time-string)
-                                            (parse-iso8601-time-string time-string))
-
-                                       (iso-to-org (time-string)
-                                                   (format-time-string
-                                                    time-format
-                                                    (iso time-string))))
-
-                              (cl-loop for wl across-ref .worklogs
-                                       do (let* ((comment (alist-get 'comment wl))
-                                                 (created (iso-to-org (alist-get 'created wl)))
-                                                 (updated (iso-to-org (alist-get 'updated wl)))
-                                                 (started (iso-to-org (alist-get 'started wl)))
-                                                 (time-spent-seconds (alist-get 'timeSpentSeconds wl))
-                                                 (finished (->> wl
-                                                                (alist-get 'started)
-                                                                (iso-to-org)
-                                                                (ts-parse-org)
-                                                                (ts-adjust 'second time-spent-seconds)
-                                                                (ts-format time-format))))
-                                            (insert "CLOCK: " started "--" finished " => 0:00")
-                                            (org-clock-update-time-maybe)
-                                            (end-of-line)
-                                            (insert "\n")
-                                            (insert "- Note taken on " created ": \\\\" "\n")
-                                            (insert "  ")
-                                            (insert comment)
-                                            (insert "\n"))))
-
-                            (insert ":END:\n"))
-                          (switch-to-buffer-other-window outbuf)
-                          (org-show-all))))))
-
-    ('update-project-status (cl-function
-                             (lambda (&key data &allow-other-keys)
-                               (save-window-excursion
-                                 (save-excursion
-                                   (let-alist data
-                                     (message "Setting JIRA_TASK_STATUS property extracted from Jira task")
-                                     (oldt-project-set-property "JIRA_TASK_STATUS" .fields.status.name)
-                                     (oldt-project-set-property "TODO_STATE" (->> .fields.status.name
-                                                                                  (s-replace " " "_" )
-                                                                                  (upcase)))))))))
-
-    ('capture-ticket-title (cl-function
-                            (lambda (&key data &allow-other-keys)
-                              (save-window-excursion
-                                (save-excursion
-                                  (let-alist data
-                                    (let ((summary .fields.summary))
-                                      (message "Going to last stored headline")
-                                      (org-capture-goto-last-stored)
-                                      (message "Setting ITEM property extracted from Jira task")
-                                      (oldt-project-set-property "ITEM" (concat summary " [0%]")))))))))))
-
-(defun oldt-jira-get-ticket-data (ticket handler &optional method)
-  (when-let (ticket (or ticket (oldt-project-get-property "TICKET")))
-    (request
-      (oldt-jira-ticket-url ticket method)
-      :headers (oldt-jira-auth-header)
-      :parser 'json-read
-      :success (oldt-jira-handler handler))))
-
-(defun oldt-jira-get-ticket-worklog (&optional ticket)
-  (oldt-jira-get-ticket-data ticket 'read-worklog "worklog"))
-
-(defun oldt-jira-update-project-status (&optional ticket)
+(defun oldt-jira-worklog-add ()
   (interactive)
-  (oldt-jira-get-ticket-data ticket 'update-project-status))
+  (oldt-jira-post
+   :data (json-encode '(("comment" . "Read the docs")
+                        ("started" . "2020-02-20T09:23:19.552+0000")
+                        ("timeSpent" . "5m")))
+   :method "worklog"
+   :success (cl-function (lambda (&key data &allow-other-keys) (pp data)))
+   :error (cl-function (lambda (&key data &allow-other-keys) (pp data)))))
+
+(cl-defun oldt-jira-worklog-show (&key data &allow-other-keys)
+  (let-alist data
+    (let ((outbuf (get-buffer-create "*jira-worklog*"))
+          (time-format "[%Y-%m-%d %a %H:%M]"))
+      (with-current-buffer outbuf
+        (delete-region (point-min) (point-max))
+        (org-mode)
+        (goto-char (point-max))
+        (unless (= (point-min) (point-max))
+          (insert "\n"))
+        (insert "* Jira worklog\n")
+        (insert ":LOGBOOK:\n")
+
+        (cl-flet* ((iso (time-string)
+                        (parse-iso8601-time-string time-string))
+
+                   (iso-to-org (time-string)
+                               (format-time-string
+                                time-format
+                                (iso time-string))))
+
+          (cl-loop for wl across-ref .worklogs
+                   do (let* ((comment (alist-get 'comment wl))
+                             (created (iso-to-org (alist-get 'created wl)))
+                             (updated (iso-to-org (alist-get 'updated wl)))
+                             (started (iso-to-org (alist-get 'started wl)))
+                             (time-spent-seconds (alist-get 'timeSpentSeconds wl))
+                             (finished (->> wl
+                                            (alist-get 'started)
+                                            (iso-to-org)
+                                            (ts-parse-org)
+                                            (ts-adjust 'second time-spent-seconds)
+                                            (ts-format time-format))))
+                        (insert "CLOCK: " started "--" finished " => 0:00")
+                        (org-clock-update-time-maybe)
+                        (end-of-line)
+
+                        (when comment
+                          (insert " \\\\ " comment)
+                          ;; (insert "- Note taken on " created ": \\\\" "\n")
+                          ;; (insert "  ")
+                          ;; (insert comment)
+                          ;; (insert "\n")
+                          )
+
+                        (insert "\n"))))
+        (insert ":END:\n"))
+      (switch-to-buffer-other-window outbuf)
+      (org-show-all))))
+
+(cl-defun oldt-jira-project-status-update (&key data &allow-other-keys)
+  (save-window-excursion
+    (save-excursion
+      (let-alist data
+        (message "Setting JIRA_TASK_STATUS property extracted from Jira task")
+        (oldt-project-set-property "JIRA_TASK_STATUS" .fields.status.name)
+        (let* ((jira-state (->> .fields.status.name
+                                (s-replace " " "_" )
+                                (upcase)))
+               (org-state (cond
+                           ((s-equals-p jira-state "IN_PROGRESS") "STARTED")
+                           (t jira-state))))
+          (oldt-project-set-property "TODO_STATE" org-state))))))
+
+(cl-defun oldt-jira-ticket-capture (&key data &allow-other-keys)
+ (save-window-excursion
+   (save-excursion
+     (let-alist data
+       (let ((summary .fields.summary))
+         (message "Going to last stored headline")
+         (org-capture-goto-last-stored)
+         (message "Setting ITEM property extracted from Jira task")
+         (oldt-project-set-property "ITEM" (concat summary " [0%]")))))))
+
+(cl-defun oldt-jira-get (&key ticket success error method sync)
+  (when-let (ticket (oldt-project-get-property "TICKET"))
+    (request (oldt-jira-ticket-url ticket method)
+      :headers `(("Authorization" . ,(oldt-jira-get-auth-token)))
+      :parser 'json-read
+      :success success
+      :error error
+      :sync sync)))
+
+(cl-defun oldt-jira-post (&key ticket data success error method)
+  (when-let (ticket (or ticket (oldt-project-get-property "TICKET")))
+    (request (oldt-jira-ticket-url ticket method)
+      :type "POST"
+      :data data
+      :headers `(("Authorization" . ,(oldt-jira-get-auth-token))
+                 ("Content-Type" . "application/json"))
+      :parser 'json-read
+      :success success
+      :error error)))
+
+(cl-defun oldt-jira-error (&key data error-thrown symbol-status &allow-other-keys)
+  (pp symbol-status)
+  (pp data)
+  (pp error-thrown))
+
+(defun oldt-jira-get-ticket-worklog ()
+  (interactive)
+  (message "Olo: %s" (oldt-project-get-property "TICKET"))
+  (when-let (ticket (oldt-project-get-property "TICKET"))
+    (message "URL: %s" (oldt-jira-ticket-url ticket "worklog"))
+    (let ((url (oldt-jira-ticket-url ticket "worklog")))
+      (request url
+        :headers `(("Authorization" . ,(oldt-jira-get-auth-token)))
+        :parser 'json-read
+        :success #'oldt-jira-worklog-show
+        :error #'oldt-jira-error
+        :sync t))))
+
+(defun oldt-jira-update-project-status ()
+  (interactive)
+  (oldt-jira-get
+   :success #'oldt-jira-project-status-update))
 
 (defun oldt-jira-capture-ticket-title (&optional ticket)
-  (oldt-jira-get-ticket-data ticket 'capture-ticket-title))
+  (oldt-jira-get
+   :success #'oldt-jira-ticket-capture))
 
 (add-hook 'org-capture-before-finalize-hook 'oldt-jira-capture-ticket-title)
 
