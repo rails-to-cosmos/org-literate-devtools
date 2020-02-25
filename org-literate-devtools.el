@@ -80,29 +80,30 @@
         (message (encode-coding-string (decode-coding-string coding-string 'mac) 'unix)))
     (with-current-buffer buffer
       (loop for line in (split-string message "\n")
-            do (let ((beg (save-excursion
-                            (beginning-of-line)
-                            (point))))
-                 (goto-char (point-max))
-                 (insert (string-trim line))
-                 (when (not (eq beg (point-max)))
-                   (loop for rt in oldt-special-symbols
-                         do (save-excursion
-                              (goto-char beg)
-                              (while (search-forward (car rt) nil t)
-                                (replace-match (cdr rt)))))
-
-                   (loop for rt in oldt-special-faces
-                         do (save-excursion
-                              (goto-char beg)
-                              (when (re-search-forward (car rt) (point-max) t)
-                                (let ((beg (match-beginning 0))
-                                      (end (match-end 0)))
-                                  (add-face-text-property beg end (cdr rt) t (current-buffer))))))
-
+            do (save-excursion
+                 (let ((beg (save-excursion
+                              (beginning-of-line)
+                              (point))))
                    (goto-char (point-max))
-                   (ansi-color-apply-on-region beg (point-max))
-                   (insert "\n")))))))
+                   (insert (string-trim line))
+                   (when (not (eq beg (point-max)))
+                     (loop for rt in oldt-special-symbols
+                           do (save-excursion
+                                (goto-char beg)
+                                (while (search-forward (car rt) nil t)
+                                  (replace-match (cdr rt)))))
+
+                     (loop for rt in oldt-special-faces
+                           do (save-excursion
+                                (goto-char beg)
+                                (when (re-search-forward (car rt) (point-max) t)
+                                  (let ((beg (match-beginning 0))
+                                        (end (match-end 0)))
+                                    (add-face-text-property beg end (cdr rt) t (current-buffer))))))
+
+                     (goto-char (point-max))
+                     (ansi-color-apply-on-region beg (point-max))
+                     (insert "\n"))))))))
 
 (aio-defun oldt-start-process-async (pname buf &rest args)
   (let* ((proc (make-process
@@ -816,18 +817,12 @@ used to limit the exported source code blocks by language."
         (delete-region (point-min) (point-max))
         (org-mode)
         (goto-char (point-max))
-        (unless (= (point-min) (point-max))
-          (insert "\n"))
-        (insert "* Jira worklog\n")
-        (insert ":LOGBOOK:\n")
 
         (cl-flet* ((iso (time-string)
                         (parse-iso8601-time-string time-string))
 
                    (iso-to-org (time-string)
-                               (format-time-string
-                                time-format
-                                (iso time-string))))
+                               (format-time-string time-format (iso time-string))))
 
           (cl-loop for wl across-ref .worklogs
                    do (let* ((comment (alist-get 'comment wl))
@@ -841,20 +836,13 @@ used to limit the exported source code blocks by language."
                                             (ts-parse-org)
                                             (ts-adjust 'second time-spent-seconds)
                                             (ts-format time-format))))
+                        (insert (format "* %s\n" (or comment "Mess")))
+                        (insert ":LOGBOOK:\n")
                         (insert "CLOCK: " started "--" finished " => 0:00")
                         (org-clock-update-time-maybe)
                         (end-of-line)
-
-                        (when comment
-                          (insert " \\\\ " comment)
-                          ;; (insert "- Note taken on " created ": \\\\" "\n")
-                          ;; (insert "  ")
-                          ;; (insert comment)
-                          ;; (insert "\n")
-                          )
-
-                        (insert "\n"))))
-        (insert ":END:\n"))
+                        (insert "\n")
+                        (insert ":END:\n")))))
       (switch-to-buffer-other-window outbuf)
       (org-show-all))))
 
