@@ -992,7 +992,12 @@ used to limit the exported source code blocks by language."
                         (org-clock-update-time-maybe)
                         (end-of-line)
                         (insert "\n")
-                        (insert ":END:\n")))))
+                        (insert ":END:\n"))))
+
+        (goto-char (point-min))
+        (insert "#+BEGIN: clocktable :formula %\n#+END\n\n")
+        (goto-char (point-min))
+        (org-ctrl-c-ctrl-c))
       (switch-to-buffer-other-window outbuf)
       (org-show-all))))
 #+end_src
