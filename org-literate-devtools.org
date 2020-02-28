@@ -962,7 +962,8 @@ used to limit the exported source code blocks by language."
 (cl-defun oldt-jira-worklog-show (&key data &allow-other-keys)
   (let-alist data
     (let ((outbuf (get-buffer-create "*jira-worklog*"))
-          (time-format "[%Y-%m-%d %a %H:%M]"))
+          (time-format "[%Y-%m-%d %a %H:%M]")
+          (default-task-title "Mess"))
       (with-current-buffer outbuf
         (delete-region (point-min) (point-max))
         (org-mode)
@@ -986,7 +987,7 @@ used to limit the exported source code blocks by language."
                                             (ts-parse-org)
                                             (ts-adjust 'second time-spent-seconds)
                                             (ts-format time-format))))
-                        (insert (format "* %s\n" (or comment "Mess")))
+                        (insert (format "* %s\n" (or comment default-task-title)))
                         (insert ":LOGBOOK:\n")
                         (insert "CLOCK: " started "--" finished " => 0:00")
                         (org-clock-update-time-maybe)
