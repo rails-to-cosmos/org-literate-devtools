@@ -781,6 +781,19 @@ used to limit the exported source code blocks by language."
         (default-directory (file-name-directory (buffer-file-name (org-clocking-buffer)))))
     (oldt-trigger-function (list :from "TODO" :to state))))
 
+(defun oldt-aws-emr-cluster--list ()
+  (let ((clusters (->> "aws emr list-clusters --active"
+                       shell-command-to-string
+                       json-read-from-string)))
+    (let-alist clusters
+      (cl-loop for cluster across-ref .Clusters
+               collect (let-alist cluster
+                         (list .Name .Id))))))
+
+;; (defun oldt-aws-emr-instance--list (cluster-id)
+;;   (let ((instances (->> (format "aws emr list-instances --cluster-id %s" )
+;;                         )))))
+
 (require 'request)
 (require 'ts)
 

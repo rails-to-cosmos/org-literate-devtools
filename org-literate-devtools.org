@@ -919,6 +919,21 @@ used to limit the exported source code blocks by language."
     (oldt-trigger-function (list :from "TODO" :to state))))
 #+end_src
 * Experiments
+** aws emr
+#+begin_src emacs-lisp
+(defun oldt-aws-emr-cluster--list ()
+  (let ((clusters (->> "aws emr list-clusters --active"
+                       shell-command-to-string
+                       json-read-from-string)))
+    (let-alist clusters
+      (cl-loop for cluster across-ref .Clusters
+               collect (let-alist cluster
+                         (list .Name .Id))))))
+
+;; (defun oldt-aws-emr-instance--list (cluster-id)
+;;   (let ((instances (->> (format "aws emr list-instances --cluster-id %s" )
+;;                         )))))
+#+end_src
 ** Jira
 *** requirements
 #+begin_src emacs-lisp
