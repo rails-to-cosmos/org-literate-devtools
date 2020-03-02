@@ -957,7 +957,7 @@ used to limit the exported source code blocks by language."
   (org-mode))
 
 (defun oldt-report-create (headline)
-  (let ((entry-id (org-id-uuid))
+  (let ((entry-id (org-id-new))
         (report-buffer (get-buffer-create "*oldt-projects-overview*")))
     (with-current-buffer report-buffer
       (if (string-empty-p (buffer-string))
